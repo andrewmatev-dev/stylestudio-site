@@ -40,12 +40,16 @@ async function uploadDataUrl(dataUrl, path) {
   return path;
 }
 
-// Get a temporary signed URL for an image path
-async function signedUrl(path) {
+// Get a permanent public URL for an image path.
+// (The bucket must be set to PUBLIC in Supabase Storage settings.
+//  Paths are random UUIDs under the user's own UUID folder, so they
+//  aren't guessable — this is the standard, simple approach for
+//  per-user photo galleries and avoids signed URLs expiring after 1hr,
+//  which would otherwise break every photo in the app and in shared posts.)
+function publicUrl(path) {
   const sb = getSupabase();
-  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 60 * 60); // 1h
-  if (error) throw error;
-  return data.signedUrl;
+  const { data } = sb.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
 }
 
 // ---------- public API: matches window.storage shape ----------
@@ -60,7 +64,7 @@ export const storage = {
     if (type === 'item') {
       const { data } = await sb.from('items').select('*').eq('id', id).eq('user_id', uid).maybeSingle();
       if (!data) throw new Error('Not found');
-      const url = await signedUrl(data.image_path);
+      const url = publicUrl(data.image_path);
       return { key, value: JSON.stringify(itemToClient(data, url)) };
     }
 

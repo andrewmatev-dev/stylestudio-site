@@ -1,12 +1,12 @@
 // Server-side route for outfit generation.
-// Client calls: POST /api/outfits { occasion, genderPref, wardrobe }
+// Client calls: POST /api/outfits { occasion, genderPref, wardrobe, avoid }
 // Returns: { outfits: [{ title, vibe, item_ids, styling_tip, missing }] }
 
 import Anthropic from '@anthropic-ai/sdk';
 
 export async function POST(request) {
   try {
-    const { occasion, genderPref, wardrobe } = await request.json();
+    const { occasion, genderPref, wardrobe, avoid } = await request.json();
 
     if (!Array.isArray(wardrobe) || wardrobe.length < 2) {
       return Response.json({ error: 'Need at least 2 wardrobe items' }, { status: 400 });
@@ -16,10 +16,14 @@ export async function POST(request) {
       : genderPref === 'women' ? 'feminine / womenswear'
       : 'any presentation, gender-neutral';
 
+    const avoidText = avoid
+      ? `\n\nThe user has REJECTED these exact item combinations — do NOT recreate them (item ids, sorted):\n${avoid}`
+      : '';
+
     const prompt = `Professional stylist. Compose 3 distinct outfits for "${occasion}". Style direction: ${genderText}.
 
 Wardrobe (use ONLY these by id):
-${JSON.stringify(wardrobe, null, 2)}
+${JSON.stringify(wardrobe, null, 2)}${avoidText}
 
 Rules:
 - Each outfit 2-6 items that work together
