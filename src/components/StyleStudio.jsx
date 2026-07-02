@@ -1048,16 +1048,71 @@ function AddView({pendingItem, analyzing, error, onConfirm, onCancel, onUpdate})
               </div>
             </div>
 
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-              {[['Color',a.color,a.colorHex],['Material',a.material||'—',null],['Pattern',a.pattern,null],['Formality','●'.repeat(a.formality||0)+'○'.repeat(5-(a.formality||0)),null]].map(([l,v,hex])=>(
-                <div key={l} style={{padding:'10px 12px',borderRadius:14,background:C.surface,border:`1px solid ${C.border}`}}>
-                  <div style={{fontSize:9,fontWeight:800,letterSpacing:'0.15em',textTransform:'uppercase',color:C.sage}}>{l}</div>
-                  <div className="serif" style={{fontSize:14,fontWeight:700,marginTop:2,color:C.ink,display:'flex',alignItems:'center',gap:5,textTransform:'capitalize'}}>
-                    {hex && <span style={{width:12,height:12,borderRadius:'50%',background:hex,border:`1px solid ${C.border}`,flexShrink:0}}/>}
-                    {v}
-                  </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <div>
+                <label style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.sage}}>Color</label>
+                <div style={{display:'flex',gap:8,alignItems:'center',marginTop:6}}>
+                  <input
+                    type="color"
+                    value={a.colorHex || '#888888'}
+                    onChange={e => onUpdate({colorHex: e.target.value})}
+                    style={{width:38,height:38,borderRadius:12,border:`2px solid ${C.borderStrong}`,padding:0,cursor:'pointer',background:'none',flexShrink:0}}
+                  />
+                  <input
+                    value={a.color || ''}
+                    onChange={e => onUpdate({color: e.target.value})}
+                    placeholder="e.g. olive green"
+                    className="serif"
+                    style={{flex:1,minWidth:0,padding:'10px 10px',borderRadius:14,fontSize:14,fontWeight:700,border:`2px solid ${C.borderStrong}`,background:C.surface,color:C.ink,outline:'none'}}
+                  />
                 </div>
-              ))}
+              </div>
+              <div>
+                <label style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.sage}}>Material</label>
+                <input
+                  value={a.material || ''}
+                  onChange={e => onUpdate({material: e.target.value})}
+                  placeholder="e.g. cotton"
+                  className="serif"
+                  style={{width:'100%',marginTop:6,padding:'10px 12px',borderRadius:14,fontSize:15,fontWeight:700,border:`2px solid ${C.borderStrong}`,background:C.surface,color:C.ink,outline:'none'}}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.sage}}>Pattern</label>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>
+                {['solid','striped','plaid','floral','graphic','other'].map(p => {
+                  const active = a.pattern === p;
+                  return (
+                    <button key={p} onClick={() => onUpdate({pattern: p})} className="bouncy"
+                      style={{padding:'7px 14px',borderRadius:999,fontSize:12,fontWeight:800,textTransform:'capitalize',cursor:'pointer',
+                        background: active ? C.forest : C.surface, color: active ? 'white' : C.ink,
+                        border:`2px solid ${active ? C.forest : C.border}`}}>
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.sage}}>Formality</label>
+              <div style={{display:'flex',gap:10,marginTop:8,alignItems:'center'}}>
+                {[1,2,3,4,5].map(n => {
+                  const filled = n <= (a.formality || 0);
+                  return (
+                    <button key={n} onClick={() => onUpdate({formality: n})} className="bouncy"
+                      aria-label={`Formality ${n}`}
+                      style={{width:30,height:30,borderRadius:'50%',cursor:'pointer',
+                        background: filled ? C.forest : C.surface,
+                        border:`2px solid ${filled ? C.forest : C.borderStrong}`}}/>
+                  );
+                })}
+                <span style={{fontSize:11,fontWeight:700,color:C.inkSoft,marginLeft:4}}>
+                  {['','Casual','Relaxed','Smart','Dressy','Formal'][a.formality || 0] || 'Tap to set'}
+                </span>
+              </div>
             </div>
 
             {a.style_tags?.length>0 && (
