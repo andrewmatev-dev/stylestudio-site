@@ -1,0 +1,14 @@
+{
+  "name": "StyleStudio",
+  "short_name": "StyleStudio",
+  "description": "AI-powered styling for your wardrobe",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF8EE",
+  "theme_color": "#FF5757",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
