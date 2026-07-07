@@ -2,15 +2,11 @@
 
 import { useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
+import { Heart } from 'lucide-react';
 
-const F  = '#0F2010'; // forest
-const FM = '#1A3C1C'; // forest mid
-const CR = '#F2E8D0'; // warm cream
-const O  = '#B87833'; // ochre gold
-const S  = '#3E6844'; // sage
+const NAVY="#0B1220", NAVY2="#16233D", GOLD="#D4A94A", CREAM="#F3EEE3", ROSE="#C88B8B";
 
-// Leaf Hanger mark — same logo used in the main app header
-function LeafHangerLogo({ size = 40, fg = CR, ac = O }) {
+function Leaf({ size = 30, fg = "#fff", ac = "#000" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
       <path d="M8 36 C8 36 14 28 24 28 C34 28 40 36 40 36" stroke={fg} strokeWidth="2.8" strokeLinecap="round"/>
@@ -22,126 +18,191 @@ function LeafHangerLogo({ size = 40, fg = CR, ac = O }) {
 }
 
 export default function AuthScreen() {
+  const [mode, setMode] = useState('login');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [info, setInfo] = useState(null);
 
-  async function submit() {
-    if (!email || !email.includes('@')) { setError('Enter a valid email'); return; }
-    setError(null);
-    setLoading(true);
+  async function handleLogin() {
+    if (!username.trim() || !password) { setError('Enter your username and password'); return; }
+    setError(null); setInfo(null); setLoading(true);
     try {
       const sb = getSupabase();
-      const { error } = await sb.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined }
-      });
-      if (error) throw error;
-      setSent(true);
+      const { data: resolvedEmail, error: lookupErr } = await sb.rpc('get_email_for_username', { p_username: username.trim() });
+      if (lookupErr || !resolvedEmail) { setError('No account found with that username'); return; }
+      const { error: signInErr } = await sb.auth.signInWithPassword({ email: resolvedEmail, password });
+      if (signInErr) { setError('Incorrect password'); return; }
     } catch (e) {
-      setError(e.message || 'Could not send link');
+      setError(e.message || 'Could not sign in');
     } finally { setLoading(false); }
   }
 
+  async function handleSignup() {
+    if (!username.trim() || username.trim().length < 3) { setError('Username must be at least 3 characters'); return; }
+    if (!email || !email.includes('@')) { setError('Enter a valid email'); return; }
+    if (!password || password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    setError(null); setInfo(null); setLoading(true);
+    try {
+      const sb = getSupabase();
+      const { data, error: signUpErr } = await sb.auth.signUp({ email, password });
+      if (signUpErr) { setError(signUpErr.message || 'Could not create account'); return; }
+
+      if (data.session) {
+        const { error: nameErr } = await sb.from('profiles').update({ display_name: username.trim() }).eq('id', data.user.id);
+        if (nameErr) {
+          if (nameErr.message?.includes('duplicate') || nameErr.code === '23505') {
+            setError('That username is already taken — try another');
+          } else {
+            setError('Account created, but could not save username. You can set it later in Settings.');
+          }
+          return;
+        }
+      } else {
+        setInfo('Account created! Check your email to confirm, then log in with your username and password.');
+        setMode('login');
+      }
+    } catch (e) {
+      setError(e.message || 'Could not create account');
+    } finally { setLoading(false); }
+  }
+
+  function submit() {
+    if (mode === 'login') handleLogin(); else handleSignup();
+  }
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      background: `linear-gradient(160deg, ${F} 0%, ${FM} 55%, ${F} 100%)`,
-      padding: 28, color: CR, fontFamily: "'Manrope', system-ui, sans-serif",
-      position: 'relative', overflow: 'hidden'
-    }}>
+    <div style={{background:CREAM,fontFamily:"'Manrope',system-ui,sans-serif",color:NAVY}}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700;9..144,900&family=Manrope:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
-        .ss-input::placeholder { color: rgba(242,232,208,0.45); }
+        .ss-input::placeholder { color: rgba(243,238,227,0.4); }
         .ss-btn { transition: transform .15s ease, opacity .15s ease; }
         .ss-btn:active { transform: scale(0.97); }
       `}</style>
 
-      {/* Subtle decorative leaf, faint, top right */}
-      <div style={{ position: 'absolute', top: -30, right: -20, opacity: 0.06 }}>
-        <LeafHangerLogo size={260} fg={CR} ac={CR} />
-      </div>
-      <div style={{ position: 'absolute', bottom: -10, left: -30, opacity: 0.05 }}>
-        <LeafHangerLogo size={180} fg={CR} ac={CR} />
-      </div>
+      <div style={{background:`linear-gradient(165deg,${NAVY} 0%,${NAVY2} 60%,${NAVY} 100%)`,color:CREAM,padding:'40px 22px 46px',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',top:-30,right:-20,opacity:.08}}><Leaf size={200} fg={CREAM}/></div>
 
-      <div style={{ maxWidth: 380, width: '100%', textAlign: 'center', position: 'relative' }}>
-
-        {/* Logo mark */}
-        <div style={{
-          width: 64, height: 64, borderRadius: 18, margin: '0 auto 20px',
-          background: 'rgba(242,232,208,0.08)', border: `1.5px solid rgba(242,232,208,0.18)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <LeafHangerLogo size={38} fg={CR} ac={O} />
+        <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:28,position:'relative'}}>
+          <div style={{width:32,height:32,borderRadius:9,background:'rgba(243,238,227,.08)',border:`1px solid ${GOLD}50`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Leaf size={18} fg={CREAM} ac={GOLD}/>
+          </div>
+          <span style={{fontFamily:"'Fraunces',serif",fontSize:16,fontWeight:700}}>style<span style={{fontStyle:'italic',fontWeight:300,color:GOLD}}>studio</span></span>
         </div>
 
-        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.3em', textTransform: 'uppercase', color: O, marginBottom: 10 }}>
-          The atelier in your pocket
-        </div>
-
-        <h1 style={{
-          fontFamily: "'Fraunces', Georgia, serif", fontSize: 40, fontWeight: 700,
-          letterSpacing: '-0.02em', lineHeight: 1.08, margin: '0 0 14px'
-        }}>
-          Dress like it's <span style={{ fontStyle: 'italic', fontWeight: 300, color: O }}>intentional.</span>
+        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.3em',textTransform:'uppercase',color:GOLD,marginBottom:12,position:'relative'}}>Good morning</div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:30,fontWeight:700,letterSpacing:'-0.02em',lineHeight:1.1,margin:'0 0 14px',position:'relative'}}>
+          Everything you own,<br/><span style={{fontStyle:'italic',fontWeight:300,color:GOLD}}>finally makes sense.</span>
         </h1>
-
-        <p style={{ fontSize: 14, color: 'rgba(242,232,208,0.7)', fontWeight: 500, lineHeight: 1.6, margin: '0 0 32px' }}>
-          Your closet, catalogued. Your outfits, composed by AI.
-          One email away from getting dressed with intention.
+        <p style={{fontSize:13,color:'rgba(243,238,227,.65)',fontWeight:500,lineHeight:1.6,marginBottom:24,maxWidth:300,position:'relative'}}>
+          Photograph your closet once. From then on, we already know what you'd wear.
         </p>
 
-        {sent ? (
-          <div style={{
-            background: 'rgba(242,232,208,0.07)', border: `1px solid rgba(242,232,208,0.15)`,
-            borderRadius: 20, padding: '28px 24px'
-          }}>
-            <div style={{ fontSize: 30, marginBottom: 10 }}>📬</div>
-            <div style={{ fontFamily: "'Fraunces', serif", fontSize: 19, fontWeight: 700, marginBottom: 6 }}>
-              Check your email
-            </div>
-            <div style={{ fontSize: 13, color: 'rgba(242,232,208,0.65)', fontWeight: 500 }}>
-              We sent a one-tap sign-in link to<br/>
-              <span style={{ color: CR, fontWeight: 700 }}>{email}</span>
+        <div style={{display:'flex',gap:4,padding:4,borderRadius:12,background:'rgba(243,238,227,.06)',border:'1px solid rgba(243,238,227,.12)',maxWidth:300,marginBottom:16,position:'relative'}}>
+          {['login','signup'].map(m => (
+            <button key={m} onClick={()=>{setMode(m);setError(null);setInfo(null);}}
+              style={{flex:1,padding:'9px 0',borderRadius:9,border:'none',cursor:'pointer',fontWeight:800,fontSize:12,
+                background: mode===m ? GOLD : 'transparent', color: mode===m ? NAVY : 'rgba(243,238,227,.6)'}}>
+              {m === 'login' ? 'Log in' : 'Create account'}
+            </button>
+          ))}
+        </div>
+
+        <div style={{maxWidth:300,position:'relative'}}>
+          <input
+            value={username} onChange={e=>setUsername(e.target.value)}
+            placeholder="Username"
+            className="ss-input"
+            style={{width:'100%',padding:'13px 16px',borderRadius:10,border:`1px solid ${GOLD}40`,background:'rgba(243,238,227,.05)',color:CREAM,fontSize:14,fontWeight:600,marginBottom:10,outline:'none',fontFamily:'inherit'}}
+          />
+
+          {mode === 'signup' && (
+            <input
+              value={email} onChange={e=>setEmail(e.target.value)}
+              type="email" placeholder="your@email.com"
+              className="ss-input"
+              style={{width:'100%',padding:'13px 16px',borderRadius:10,border:`1px solid ${GOLD}40`,background:'rgba(243,238,227,.05)',color:CREAM,fontSize:14,fontWeight:600,marginBottom:10,outline:'none',fontFamily:'inherit'}}
+            />
+          )}
+
+          <input
+            value={password} onChange={e=>setPassword(e.target.value)}
+            type="password" placeholder="Password"
+            className="ss-input"
+            onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+            style={{width:'100%',padding:'13px 16px',borderRadius:10,border:`1px solid ${GOLD}40`,background:'rgba(243,238,227,.05)',color:CREAM,fontSize:14,fontWeight:600,marginBottom:10,outline:'none',fontFamily:'inherit'}}
+          />
+
+          {error && <div style={{color:'#E8A87C',fontSize:12,fontWeight:600,marginBottom:10}}>{error}</div>}
+          {info && <div style={{color:GOLD,fontSize:12,fontWeight:600,marginBottom:10,lineHeight:1.5}}>{info}</div>}
+
+          <button onClick={submit} disabled={loading} className="ss-btn"
+            style={{width:'100%',padding:'14px',borderRadius:10,border:'none',background:GOLD,color:NAVY,fontWeight:800,fontSize:14,cursor:'pointer',opacity:loading?0.6:1}}>
+            {loading ? 'Please wait…' : mode === 'login' ? 'Log in →' : 'Create account →'}
+          </button>
+
+          <div style={{fontSize:11,color:'rgba(243,238,227,.4)',fontWeight:600,marginTop:10}}>
+            {mode === 'login' ? "New here? Tap \"Create account\" above." : 'Your email is only used for account recovery.'}
+          </div>
+        </div>
+      </div>
+
+      <div style={{padding:'30px 22px 6px'}}>
+        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.2em',textTransform:'uppercase',color:ROSE,marginBottom:6}}>Already put together</div>
+        <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:700,margin:'0 0 16px'}}>
+          Three outfits, <span style={{fontStyle:'italic',fontWeight:300,color:ROSE}}>ready when you are.</span>
+        </h2>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:1,marginBottom:34}}>
+        {[['Office','#D8CFC0'],['Date night','#C88B8B'],['Weekend','#A8B89C']].map(([l,c],i)=>(
+          <div key={i} style={{background:c,aspectRatio:'3/4',display:'flex',alignItems:'flex-end',padding:10}}>
+            <span style={{fontFamily:"'Fraunces',serif",fontSize:12,fontWeight:700,fontStyle:'italic',color:NAVY}}>{l}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{padding:'0 22px 34px'}}>
+        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.2em',textTransform:'uppercase',color:GOLD,marginBottom:6}}>Your people</div>
+        <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:700,margin:'0 0 10px'}}>
+          Show off your look. <span style={{fontStyle:'italic',fontWeight:300,color:GOLD}}>See theirs too.</span>
+        </h2>
+        <p style={{fontSize:12,color:'rgba(11,18,32,.6)',fontWeight:600,marginBottom:16,lineHeight:1.6}}>
+          Post an outfit you're proud of. Scroll what everyone else is wearing. Save the ones that catch your eye.
+        </p>
+        <div style={{background:'white',borderRadius:14,border:'1px solid rgba(11,18,32,.08)',padding:14}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+            <div style={{width:28,height:28,borderRadius:'50%',background:ROSE}}/>
+            <div style={{fontSize:12,fontWeight:800,flex:1}}>Vivienne K.</div>
+            <div style={{display:'flex',alignItems:'center',gap:3,background:'#F3EEE3',padding:'4px 10px',borderRadius:999}}>
+              <Heart size={12} fill={GOLD} strokeWidth={0}/><span style={{fontSize:11,fontWeight:800,color:GOLD}}>62</span>
             </div>
           </div>
-        ) : (
-          <>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              className="ss-input"
-              style={{
-                width: '100%', padding: '15px 18px', borderRadius: 16,
-                border: `1.5px solid rgba(242,232,208,0.2)`, fontSize: 16, marginBottom: 12, outline: 'none',
-                background: 'rgba(242,232,208,0.06)', color: CR, fontWeight: 600,
-                fontFamily: "'Manrope', sans-serif"
-              }}
-            />
-            {error && <div style={{ color: '#E8A87C', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{error}</div>}
-            <button onClick={submit} disabled={loading} className="ss-btn"
-              style={{
-                width: '100%', padding: '15px 18px', borderRadius: 16,
-                border: 'none', background: O, color: F,
-                fontWeight: 800, fontSize: 15, cursor: 'pointer',
-                opacity: loading ? 0.6 : 1,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-              }}>
-              {loading ? 'Sending…' : 'Send sign-in link →'}
-            </button>
-            <div style={{ marginTop: 18, fontSize: 11, color: 'rgba(242,232,208,0.45)', fontWeight: 600, letterSpacing: '0.02em' }}>
-              No password to remember. Just one link, sent straight to you.
-            </div>
-          </>
-        )}
-
-        <div style={{ marginTop: 40, fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(242,232,208,0.3)' }}>
-          Style<span style={{ fontStyle: 'italic', fontWeight: 300 }}>Studio</span> · For everyone with a closet
+          <div style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,fontStyle:'italic'}}>Friday Night Out</div>
         </div>
+      </div>
+
+      <div style={{background:NAVY,color:CREAM,padding:'30px 22px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          {[
+            ['📸','Snap a photo','We tag the brand, color, and style for you'],
+            ['✨','Get dressed','Three outfit options, picked for the day'],
+            ['🌿','Share it','Post it, or just keep it for yourself'],
+            ['👟','Know your closet','See what you actually reach for'],
+          ].map(([icon,title,sub],i)=>(
+            <div key={i} style={{background:'rgba(243,238,227,.05)',border:`1px solid rgba(212,169,74,.15)`,borderRadius:12,padding:14}}>
+              <div style={{fontSize:18,marginBottom:6}}>{icon}</div>
+              <div style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,marginBottom:3}}>{title}</div>
+              <div style={{fontSize:10,color:'rgba(243,238,227,.5)',fontWeight:600,lineHeight:1.4}}>{sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{textAlign:'center',padding:'24px 22px',fontSize:9,fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(11,18,32,.3)'}}>
+        Style·Studio · For everyone with a closet
       </div>
     </div>
   );
