@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { Heart } from 'lucide-react';
 
-const NAVY="#0B1220", NAVY2="#16233D", GOLD="#D4A94A", CREAM="#F3EEE3", ROSE="#C88B8B";
+// ── Flat White (30A) — same tokens as the landing page ──
+const PAGE="#F6F0E8", SOFT="#EEE6D9", PANEL="#E6DBCA", CARD="#FBF7F0";
+const INK="#3A302A", INKDIM="rgba(58,48,40,.66)", INKFAINT="rgba(58,48,40,.42)", LINE="rgba(58,48,40,.14)";
+const DEEP="#7A6650", DEEP2="#62503E", ACCENT="#8E7A62", ACCENT2="#6A5844";
+const ONDEEP="#F8F3EA", ONDEEPSUB="rgba(248,243,234,.78)";
 
 function Leaf({ size = 30, fg = "#fff", ac = "#000" }) {
   return (
@@ -22,9 +26,21 @@ export default function AuthScreen() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [birthdate, setBirthdate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
+
+  function isAtLeast18(dateStr) {
+    if (!dateStr) return false;
+    const dob = new Date(dateStr);
+    if (isNaN(dob.getTime())) return false;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+    return age >= 18;
+  }
 
   async function handleLogin() {
     if (!username.trim() || !password) { setError('Enter your username and password'); return; }
@@ -44,6 +60,8 @@ export default function AuthScreen() {
     if (!username.trim() || username.trim().length < 3) { setError('Username must be at least 3 characters'); return; }
     if (!email || !email.includes('@')) { setError('Enter a valid email'); return; }
     if (!password || password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (!birthdate) { setError('Enter your date of birth'); return; }
+    if (!isAtLeast18(birthdate)) { setError('You must be 18 or older to use StyleStudio'); return; }
     setError(null); setInfo(null); setLoading(true);
     try {
       const sb = getSupabase();
@@ -73,50 +91,58 @@ export default function AuthScreen() {
     if (mode === 'login') handleLogin(); else handleSignup();
   }
 
+  const inputStyle = {
+    width:'100%',padding:'13px 16px',borderRadius:10,border:`1px solid rgba(248,243,234,.3)`,
+    background:'rgba(248,243,234,.1)',color:ONDEEP,fontSize:14,fontWeight:600,marginBottom:10,
+    outline:'none',fontFamily:'inherit'
+  };
+
   return (
-    <div style={{background:CREAM,fontFamily:"'Manrope',system-ui,sans-serif",color:NAVY}}>
+    <div style={{background:PAGE,fontFamily:"'DM Sans','Manrope',system-ui,sans-serif",color:INK}}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,700;9..144,900&family=Manrope:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=DM+Sans:opsz,wght@9..40,400..800&display=swap');
         * { box-sizing: border-box; }
-        .ss-input::placeholder { color: rgba(243,238,227,0.4); }
+        .ss-input::placeholder { color: rgba(248,243,234,0.5); }
         .ss-btn { transition: transform .15s ease, opacity .15s ease; }
         .ss-btn:active { transform: scale(0.97); }
       `}</style>
 
-      <div style={{background:`linear-gradient(165deg,${NAVY} 0%,${NAVY2} 60%,${NAVY} 100%)`,color:CREAM,padding:'40px 22px 46px',position:'relative',overflow:'hidden'}}>
-        <div style={{position:'absolute',top:-30,right:-20,opacity:.08}}><Leaf size={200} fg={CREAM}/></div>
+      {/* ── Light hero, like the landing page ── */}
+      <div style={{padding:'36px 22px 34px',position:'relative',overflow:'hidden'}}>
+        <div style={{position:'absolute',top:-30,right:-20,opacity:.07}}><Leaf size={200} fg={DEEP}/></div>
 
-        <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:28,position:'relative'}}>
-          <div style={{width:32,height:32,borderRadius:9,background:'rgba(243,238,227,.08)',border:`1px solid ${GOLD}50`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <Leaf size={18} fg={CREAM} ac={GOLD}/>
+        <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:26,position:'relative'}}>
+          <div style={{width:32,height:32,borderRadius:9,background:CARD,border:`1px solid ${LINE}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Leaf size={18} fg={DEEP} ac={ACCENT}/>
           </div>
-          <span style={{fontFamily:"'Fraunces',serif",fontSize:16,fontWeight:700}}>style<span style={{fontStyle:'italic',fontWeight:300,color:GOLD}}>studio</span></span>
+          <span style={{fontFamily:"'Fraunces',serif",fontSize:16,fontWeight:700}}>style<span style={{fontStyle:'italic',fontWeight:300,color:ACCENT2}}>studio</span></span>
         </div>
 
-        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.3em',textTransform:'uppercase',color:GOLD,marginBottom:12,position:'relative'}}>Good morning</div>
+        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.3em',textTransform:'uppercase',color:ACCENT,marginBottom:12,position:'relative'}}>Good morning</div>
         <h1 style={{fontFamily:"'Fraunces',serif",fontSize:30,fontWeight:700,letterSpacing:'-0.02em',lineHeight:1.1,margin:'0 0 14px',position:'relative'}}>
-          Everything you own,<br/><span style={{fontStyle:'italic',fontWeight:300,color:GOLD}}>finally makes sense.</span>
+          Everything you own,<br/><span style={{fontStyle:'italic',fontWeight:300,color:ACCENT2}}>finally makes sense.</span>
         </h1>
-        <p style={{fontSize:13,color:'rgba(243,238,227,.65)',fontWeight:500,lineHeight:1.6,marginBottom:24,maxWidth:300,position:'relative'}}>
+        <p style={{fontSize:13,color:INKDIM,fontWeight:500,lineHeight:1.6,marginBottom:22,maxWidth:300,position:'relative'}}>
           Photograph your closet once. From then on, we already know what you'd wear.
         </p>
 
-        <div style={{display:'flex',gap:4,padding:4,borderRadius:12,background:'rgba(243,238,227,.06)',border:'1px solid rgba(243,238,227,.12)',maxWidth:300,marginBottom:16,position:'relative'}}>
-          {['login','signup'].map(m => (
-            <button key={m} onClick={()=>{setMode(m);setError(null);setInfo(null);}}
-              style={{flex:1,padding:'9px 0',borderRadius:9,border:'none',cursor:'pointer',fontWeight:800,fontSize:12,
-                background: mode===m ? GOLD : 'transparent', color: mode===m ? NAVY : 'rgba(243,238,227,.6)'}}>
-              {m === 'login' ? 'Log in' : 'Create account'}
-            </button>
-          ))}
-        </div>
+        {/* ── The one deep taupe anchor: the login card ── */}
+        <div style={{maxWidth:340,position:'relative',borderRadius:18,padding:'18px 18px 16px',background:`linear-gradient(150deg,${DEEP},${DEEP2})`,boxShadow:'0 24px 48px -24px rgba(58,48,40,.4)'}}>
+          <div style={{display:'flex',gap:4,padding:4,borderRadius:12,background:'rgba(248,243,234,.08)',border:'1px solid rgba(248,243,234,.16)',marginBottom:14}}>
+            {['login','signup'].map(m => (
+              <button key={m} onClick={()=>{setMode(m);setError(null);setInfo(null);}}
+                style={{flex:1,padding:'9px 0',borderRadius:9,border:'none',cursor:'pointer',fontWeight:800,fontSize:12,
+                  background: mode===m ? ONDEEP : 'transparent', color: mode===m ? DEEP2 : ONDEEPSUB}}>
+                {m === 'login' ? 'Log in' : 'Create account'}
+              </button>
+            ))}
+          </div>
 
-        <div style={{maxWidth:300,position:'relative'}}>
           <input
             value={username} onChange={e=>setUsername(e.target.value)}
             placeholder="Username"
             className="ss-input"
-            style={{width:'100%',padding:'13px 16px',borderRadius:10,border:`1px solid ${GOLD}40`,background:'rgba(243,238,227,.05)',color:CREAM,fontSize:14,fontWeight:600,marginBottom:10,outline:'none',fontFamily:'inherit'}}
+            style={inputStyle}
           />
 
           {mode === 'signup' && (
@@ -124,8 +150,20 @@ export default function AuthScreen() {
               value={email} onChange={e=>setEmail(e.target.value)}
               type="email" placeholder="your@email.com"
               className="ss-input"
-              style={{width:'100%',padding:'13px 16px',borderRadius:10,border:`1px solid ${GOLD}40`,background:'rgba(243,238,227,.05)',color:CREAM,fontSize:14,fontWeight:600,marginBottom:10,outline:'none',fontFamily:'inherit'}}
+              style={inputStyle}
             />
+          )}
+
+          {mode === 'signup' && (
+            <>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:'.12em',textTransform:'uppercase',color:ONDEEPSUB,margin:'2px 0 6px'}}>Date of birth</div>
+              <input
+                value={birthdate} onChange={e=>setBirthdate(e.target.value)}
+                type="date"
+                className="ss-input"
+                style={{...inputStyle,padding:'12px 16px',colorScheme:'dark'}}
+              />
+            </>
           )}
 
           <input
@@ -133,58 +171,58 @@ export default function AuthScreen() {
             type="password" placeholder="Password"
             className="ss-input"
             onKeyDown={e => { if (e.key === 'Enter') submit(); }}
-            style={{width:'100%',padding:'13px 16px',borderRadius:10,border:`1px solid ${GOLD}40`,background:'rgba(243,238,227,.05)',color:CREAM,fontSize:14,fontWeight:600,marginBottom:10,outline:'none',fontFamily:'inherit'}}
+            style={inputStyle}
           />
 
-          {error && <div style={{color:'#E8A87C',fontSize:12,fontWeight:600,marginBottom:10}}>{error}</div>}
-          {info && <div style={{color:GOLD,fontSize:12,fontWeight:600,marginBottom:10,lineHeight:1.5}}>{info}</div>}
+          {error && <div style={{color:'#F5D3A8',fontSize:12,fontWeight:600,marginBottom:10}}>{error}</div>}
+          {info && <div style={{color:'#EFDFC6',fontSize:12,fontWeight:600,marginBottom:10,lineHeight:1.5}}>{info}</div>}
 
           <button onClick={submit} disabled={loading} className="ss-btn"
-            style={{width:'100%',padding:'14px',borderRadius:10,border:'none',background:GOLD,color:NAVY,fontWeight:800,fontSize:14,cursor:'pointer',opacity:loading?0.6:1}}>
+            style={{width:'100%',padding:'14px',borderRadius:10,border:'none',background:ONDEEP,color:ACCENT2,fontWeight:800,fontSize:14,cursor:'pointer',opacity:loading?0.6:1}}>
             {loading ? 'Please wait…' : mode === 'login' ? 'Log in →' : 'Create account →'}
           </button>
 
-          <div style={{fontSize:11,color:'rgba(243,238,227,.4)',fontWeight:600,marginTop:10}}>
-            {mode === 'login' ? "New here? Tap \"Create account\" above." : 'Your email is only used for account recovery.'}
+          <div style={{fontSize:11,color:ONDEEPSUB,fontWeight:600,marginTop:10}}>
+            {mode === 'login' ? "New here? Tap \"Create account\" above." : 'You must be 18 or older to join. Your email is only used for account recovery.'}
           </div>
         </div>
       </div>
 
-      <div style={{padding:'30px 22px 6px'}}>
-        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.2em',textTransform:'uppercase',color:ROSE,marginBottom:6}}>Already put together</div>
+      <div style={{padding:'26px 22px 6px'}}>
+        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.2em',textTransform:'uppercase',color:ACCENT,marginBottom:6}}>Already put together</div>
         <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:700,margin:'0 0 16px'}}>
-          Three outfits, <span style={{fontStyle:'italic',fontWeight:300,color:ROSE}}>ready when you are.</span>
+          Three outfits, <span style={{fontStyle:'italic',fontWeight:300,color:ACCENT2}}>ready when you are.</span>
         </h2>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:1,marginBottom:34}}>
         {[['Office','#D8CFC0'],['Date night','#C88B8B'],['Weekend','#A8B89C']].map(([l,c],i)=>(
           <div key={i} style={{background:c,aspectRatio:'3/4',display:'flex',alignItems:'flex-end',padding:10}}>
-            <span style={{fontFamily:"'Fraunces',serif",fontSize:12,fontWeight:700,fontStyle:'italic',color:NAVY}}>{l}</span>
+            <span style={{fontFamily:"'Fraunces',serif",fontSize:12,fontWeight:700,fontStyle:'italic',color:INK}}>{l}</span>
           </div>
         ))}
       </div>
 
       <div style={{padding:'0 22px 34px'}}>
-        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.2em',textTransform:'uppercase',color:GOLD,marginBottom:6}}>Your people</div>
+        <div style={{fontSize:9,fontWeight:800,letterSpacing:'.2em',textTransform:'uppercase',color:ACCENT,marginBottom:6}}>Your people</div>
         <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,fontWeight:700,margin:'0 0 10px'}}>
-          Show off your look. <span style={{fontStyle:'italic',fontWeight:300,color:GOLD}}>See theirs too.</span>
+          Show off your look. <span style={{fontStyle:'italic',fontWeight:300,color:ACCENT2}}>See theirs too.</span>
         </h2>
-        <p style={{fontSize:12,color:'rgba(11,18,32,.6)',fontWeight:600,marginBottom:16,lineHeight:1.6}}>
+        <p style={{fontSize:12,color:INKDIM,fontWeight:600,marginBottom:16,lineHeight:1.6}}>
           Post an outfit you're proud of. Scroll what everyone else is wearing. Save the ones that catch your eye.
         </p>
-        <div style={{background:'white',borderRadius:14,border:'1px solid rgba(11,18,32,.08)',padding:14}}>
+        <div style={{background:CARD,borderRadius:14,border:`1px solid ${LINE}`,padding:14}}>
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-            <div style={{width:28,height:28,borderRadius:'50%',background:ROSE}}/>
+            <div style={{width:28,height:28,borderRadius:'50%',background:'#C88B8B'}}/>
             <div style={{fontSize:12,fontWeight:800,flex:1}}>Vivienne K.</div>
-            <div style={{display:'flex',alignItems:'center',gap:3,background:'#F3EEE3',padding:'4px 10px',borderRadius:999}}>
-              <Heart size={12} fill={GOLD} strokeWidth={0}/><span style={{fontSize:11,fontWeight:800,color:GOLD}}>62</span>
+            <div style={{display:'flex',alignItems:'center',gap:3,background:SOFT,padding:'4px 10px',borderRadius:999}}>
+              <Heart size={12} fill={ACCENT} strokeWidth={0}/><span style={{fontSize:11,fontWeight:800,color:ACCENT2}}>62</span>
             </div>
           </div>
           <div style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,fontStyle:'italic'}}>Friday Night Out</div>
         </div>
       </div>
 
-      <div style={{background:NAVY,color:CREAM,padding:'30px 22px'}}>
+      <div style={{background:SOFT,borderTop:`1px solid ${LINE}`,borderBottom:`1px solid ${LINE}`,padding:'30px 22px'}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           {[
             ['📸','Snap a photo','We tag the brand, color, and style for you'],
@@ -192,17 +230,17 @@ export default function AuthScreen() {
             ['🌿','Share it','Post it, or just keep it for yourself'],
             ['👟','Know your closet','See what you actually reach for'],
           ].map(([icon,title,sub],i)=>(
-            <div key={i} style={{background:'rgba(243,238,227,.05)',border:`1px solid rgba(212,169,74,.15)`,borderRadius:12,padding:14}}>
+            <div key={i} style={{background:CARD,border:`1px solid ${LINE}`,borderRadius:12,padding:14}}>
               <div style={{fontSize:18,marginBottom:6}}>{icon}</div>
               <div style={{fontFamily:"'Fraunces',serif",fontSize:13,fontWeight:700,marginBottom:3}}>{title}</div>
-              <div style={{fontSize:10,color:'rgba(243,238,227,.5)',fontWeight:600,lineHeight:1.4}}>{sub}</div>
+              <div style={{fontSize:10,color:INKDIM,fontWeight:600,lineHeight:1.4}}>{sub}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div style={{textAlign:'center',padding:'24px 22px',fontSize:9,fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:'rgba(11,18,32,.3)'}}>
-        Style·Studio · For everyone with a closet
+      <div style={{textAlign:'center',padding:'24px 22px',fontSize:9,fontWeight:700,letterSpacing:'.15em',textTransform:'uppercase',color:INKFAINT}}>
+        Style·Studio · For everyone with a closet · 18+
       </div>
     </div>
   );
