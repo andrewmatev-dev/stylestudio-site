@@ -825,8 +825,10 @@ function ClosetView({items, total, typeCount, filter, setFilter, searchQuery, se
         </button>
 
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginTop:24}}>
-          {[[TINTS[0],'👕'],[TINTS[1],'👖'],[TINTS[2],'👟'],[TINTS[0],'🧥'],[TINTS[1],'👗'],[TINTS[2],'👜'],[TINTS[0],'🕶️'],[TINTS[1],'🧢']].map(([bg,e],i)=>(
-            <div key={i} style={{aspectRatio:'1',borderRadius:18,background:bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>{e}</div>
+          {[1,2,3,4,5,6,7,8].map(n=>(
+            <div key={n} style={{aspectRatio:'3/4',borderRadius:18,background:TINTS[(n-1)%3],overflow:'hidden'}}>
+              <img src={`/assets/closet-${n}.jpg`} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} onError={e=>{e.currentTarget.style.display='none';}}/>
+            </div>
           ))}
         </div>
       </div>
