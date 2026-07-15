@@ -168,6 +168,25 @@ const STYLE_TAG_COLORS = {
 };
 const tagColor = t => STYLE_TAG_COLORS[t?.toLowerCase()] || STYLE_TAG_COLORS.default;
 
+function compressLookPhoto(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 900; let {width, height} = img;
+        if (width > height && width > maxDim) { height = (height*maxDim)/width; width = maxDim; }
+        else if (height > maxDim) { width = (width*maxDim)/height; height = maxDim; }
+        const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        res(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = rej; img.src = e.target.result;
+    };
+    reader.onerror = rej; reader.readAsDataURL(file);
+  });
+}
+
 function uid(p = '') { return `${p}${Date.now()}_${Math.random().toString(36).slice(2,9)}`; }
 
 // Real UUIDs — required for database columns typed `uuid` (items, outfits, posts).
@@ -215,6 +234,7 @@ export default function StyleStudio() {
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [showPacking, setShowPacking] = useState(false);
+  const [showCreateLook, setShowCreateLook] = useState(false);
   const [packingResult, setPackingResult] = useState(null);
   const [generatingPack, setGeneratingPack] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -390,7 +410,7 @@ export default function StyleStudio() {
       const om = OCCASIONS.find(o => o.id === outfit.occasion);
       const embItems = (outfit.item_ids||[]).map(id => { const it = items.find(i => i.id === id); if (!it) return null; return { id: it.id, name: it.name, brand: it.brand||'', type: it.type, color: it.color, colorHex: it.colorHex, dataUrl: it.dataUrl }; }).filter(Boolean);
       const pid = newUUID();
-      const post = { id: pid, title: outfit.title, vibe: outfit.vibe, styling_tip: outfit.styling_tip||'', occasion: outfit.occasion, occasionLabel: om?.label||outfit.occasion, occasionColor: om?.color, occasionBg: om?.bgColor, occasionEmoji: om?.emoji, items: embItems, author: displayName, authorId: userId, dateCreated: Date.now(), likes: 0 };
+      const post = { id: pid, title: outfit.title, vibe: outfit.vibe, photo: outfit.photo||null, styling_tip: outfit.styling_tip||'', occasion: outfit.occasion, occasionLabel: om?.label||outfit.occasion, occasionColor: om?.color, occasionBg: om?.bgColor, occasionEmoji: om?.emoji, items: embItems, author: displayName, authorId: userId, dateCreated: Date.now(), likes: 0 };
       await storage.set(`post:${pid}`, JSON.stringify(post), true);
       setPosts(prev => [post,...prev]); setPostingOutfit(null); showToast('Shared to Inspire 🌿');
     } catch(e) { showToast('Could not share'); }
@@ -727,7 +747,7 @@ export default function StyleStudio() {
         ) : tab==='style' ? (
           <StyleView genderPref={genderPref} onGender={saveGenderPref} onOccasion={generateOutfits} count={items.length} onAdd={()=>fileInputRef.current?.click()} onPackTrip={()=>setShowPacking(true)}/>
         ) : tab==='inspire' ? (
-          <InspireView posts={filteredPosts} total={posts.length} feedFilter={feedFilter} setFeedFilter={setFeedFilter} loading={loadingFeed} userId={userId} liked={likedPosts} onOpen={setSelectedPost} onLike={toggleLike}/>
+          <InspireView posts={filteredPosts} total={posts.length} feedFilter={feedFilter} setFeedFilter={setFeedFilter} loading={loadingFeed} userId={userId} liked={likedPosts} onOpen={setSelectedPost} onLike={toggleLike} onCreate={()=>{ if (items.length<2) { showToast('Add at least 2 pieces first'); } else { setShowCreateLook(true); } }}/>
         ) : tab==='saved' ? (
           <SavedView saved={savedOutfits} itemById={itemById} onOpen={setSelectedOutfit} onDelete={deleteSaved}/>
         ) : null}
@@ -752,6 +772,8 @@ export default function StyleStudio() {
       {selectedPost && <PostDetail post={selectedPost} userId={userId} liked={likedPosts.has(selectedPost.id)} comments={postComments[selectedPost.id]||[]} loadingComments={loadingComments} submittingComment={submittingComment} onLoadComments={()=>loadComments(selectedPost.id)} onAddComment={t=>addComment(selectedPost, t)} onDeleteComment={cid=>deleteComment(selectedPost, cid)} displayName={displayName} onLike={()=>toggleLike(selectedPost)} onShare={()=>shareOutfit(selectedPost)} onDelete={()=>{if(confirm('Remove this post?'))deletePost(selectedPost.id);}} onClose={()=>{setSelectedPost(null);}}/>}
       {showNameSetup && <NameModal initial={displayName} onSave={saveDisplayName} onCancel={()=>{setShowNameSetup(false);setPostingOutfit(null);}}/>}
       {postingOutfit && !showNameSetup && displayName && <PostConfirm outfit={postingOutfit} displayName={displayName} publishing={publishing} itemById={itemById} onConfirm={()=>publishPost(postingOutfit)} onCancel={()=>setPostingOutfit(null)} onChangeName={()=>setShowNameSetup(true)}/>}
+      {showCreateLook && <CreateLookModal items={items} onCancel={()=>setShowCreateLook(false)} onContinue={o=>{setShowCreateLook(false); requestPost(o);}}/>}
+
       {showPacking && <PackingModal items={items} generating={generatingPack} result={packingResult} itemById={itemById} onGenerate={generatePackingList} onClose={()=>{setShowPacking(false);setPackingResult(null);}}/>}
 
       {showProfile && <ProfileModal displayName={displayName} bio={profileBio} photo={profilePhoto} isPublic={defaultPublic} posts={posts} userId={userId} savedOutfits={savedOutfits} itemCount={items.length} onEditPhoto={()=>profilePhotoInputRef.current?.click()} onOpenSettings={()=>{setShowProfile(false);setShowSettings(true);}} onOpenPost={p=>{setShowProfile(false);setSelectedPost(p);}} onClose={()=>setShowProfile(false)}/>}
@@ -1325,7 +1347,7 @@ function OutfitCard({outfit, idx, itemById, onTap, onSave, onShare, onReject, is
 }
 
 // ============ INSPIRE VIEW ============
-function InspireView({posts, total, feedFilter, setFeedFilter, loading, userId, liked, onOpen, onLike}) {
+function InspireView({posts, total, feedFilter, setFeedFilter, loading, userId, liked, onOpen, onLike, onCreate}) {
   return (
     <div className="fade">
       <div style={{padding:'16px 20px 16px'}}>
@@ -1334,6 +1356,9 @@ function InspireView({posts, total, feedFilter, setFeedFilter, loading, userId, 
           Outfits <span style={{fontStyle:'italic',fontWeight:300,color:C.sage}}>in the wild</span>
         </h2>
         <p style={{fontSize:13,color:C.inkSoft,fontWeight:600,margin:0}}>What everyone's wearing</p>
+        <button onClick={onCreate} className="grad-espresso noise bouncy" style={{marginTop:14,width:'100%',padding:'14px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative'}}>
+          <Sparkles size={15} strokeWidth={2.2}/> Post your own look
+        </button>
       </div>
 
       <div style={{overflowX:'auto',marginBottom:14}} className="scrollbar-hide">
@@ -1393,14 +1418,19 @@ function PostCard({post, userId, isLiked, onTap, onLike}) {
         <div className="serif" style={{fontSize:19,fontWeight:700,letterSpacing:'-0.01em',color:C.ink,marginBottom:5}}>{post.title}</div>
         <p style={{fontSize:13,color:C.inkSoft,fontWeight:600,margin:0,lineHeight:1.5}}>{post.vibe}</p>
       </div>
-      <div style={{display:'grid',gap:2,padding:'0 12px 12px',gridTemplateColumns:`repeat(${Math.min(its.length,4)},1fr)`,height:130}}>
+      {post.photo && (
+        <div style={{padding:'0 12px 12px'}}>
+          <img src={post.photo} alt={post.title} style={{width:'100%',display:'block',borderRadius:14}}/>
+        </div>
+      )}
+      {its.length>0 && <div style={{display:'grid',gap:2,padding:'0 12px 12px',gridTemplateColumns:`repeat(${Math.min(its.length,4)},1fr)`,height:130}}>
         {its.slice(0,4).map((it,i)=>(
           <div key={it.id||i} style={{borderRadius:12,overflow:'hidden',position:'relative',background:it.colorHex||C.bgDeep}}>
             <img src={it.dataUrl} alt={it.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
             {its.length>4 && i===3 && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:16,color:'white',background:'rgba(26,20,13,.55)'}}>+{its.length-4}</div>}
           </div>
         ))}
-      </div>
+      </div>}
       <div style={{padding:'10px 14px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',borderTop:`1px solid ${C.border}`}}>
         <button onClick={onLike} className="bouncy" style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:999,background:isLiked?C.ochreSoft:'transparent',border:'none',cursor:'pointer',color:C.ochre}}>
           <Heart size={15} strokeWidth={2} fill={isLiked?C.ochre:'none'}/>
@@ -1587,6 +1617,12 @@ function PostDetail({post, userId, liked, comments=[], loadingComments, submitti
           <h2 className="serif" style={{fontSize:38,fontWeight:700,letterSpacing:'-0.02em',color:C.ink,margin:'0 0 8px'}}>{post.title}</h2>
           <p style={{fontSize:14,color:C.inkSoft,fontWeight:600,lineHeight:1.6,margin:'0 0 20px'}}>{post.vibe}</p>
 
+          {post.photo && (
+            <div style={{borderRadius:20,overflow:'hidden',marginBottom:20,border:`1px solid ${C.border}`}}>
+              <img src={post.photo} alt={post.title} style={{width:'100%',display:'block'}}/>
+            </div>
+          )}
+
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20}}>
             <button onClick={onLike} className="bouncy" style={{padding:'12px',borderRadius:999,fontSize:13,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:liked?C.ochre:C.surface,color:liked?'white':C.ink,border:`2px solid ${liked?C.ochre:C.borderStrong}`,cursor:'pointer'}}>
               <Heart size={15} strokeWidth={2} fill={liked?'white':'none'}/> {post.likes||0} {(post.likes||0)===1?'like':'likes'}
@@ -1602,7 +1638,7 @@ function PostDetail({post, userId, liked, comments=[], loadingComments, submitti
             )}
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
+          {its.length>0 && <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
             {its.map(it=>{
               const tm=TYPE_FILTERS.find(t=>t.id===it.type);
               return <div key={it.id} style={{borderRadius:18,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`}}>
@@ -1616,7 +1652,7 @@ function PostDetail({post, userId, liked, comments=[], loadingComments, submitti
                 </div>
               </div>;
             })}
-          </div>
+          </div>}
 
           {post.styling_tip && (
             <div className="grad-bark noise" style={{borderRadius:22,padding:'20px',color:C.ink,position:'relative',marginBottom:20}}>
@@ -1723,6 +1759,90 @@ function NameModal({initial, onSave, onCancel}) {
 }
 
 // ============ POST CONFIRM ============
+function CreateLookModal({items, onCancel, onContinue}) {
+  const [title, setTitle] = useState('');
+  const [vibe, setVibe] = useState('');
+  const [occasion, setOccasion] = useState('casual');
+  const [selected, setSelected] = useState(new Set());
+  const [photo, setPhoto] = useState(null);
+  const photoInputRef = useRef(null);
+
+  function toggleItem(id) {
+    setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  async function handlePhoto(e) {
+    const file = e.target.files?.[0]; if (!file) return;
+    try { setPhoto(await compressLookPhoto(file)); } catch(err) {}
+    finally { if (photoInputRef.current) photoInputRef.current.value=''; }
+  }
+  const ready = title.trim().length > 0 && (selected.size >= 2 || !!photo);
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(26,20,13,.55)',backdropFilter:'blur(10px)'}} className="fade">
+      <div style={{position:'absolute',inset:0,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
+        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+          <span className="serif" style={{fontSize:18,fontWeight:700,color:C.ink}}>Create your look</span>
+          <button onClick={onCancel} className="bouncy" style={{width:36,height:36,borderRadius:'50%',background:C.forest,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white'}}>
+            <X size={16} strokeWidth={2.5}/>
+          </button>
+        </div>
+        <div style={{maxWidth:440,margin:'0 auto',padding:'18px 18px 40px',background:C.bg,minHeight:'100%'}}>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Name your look</div>
+          <input value={title} onChange={e=>setTitle(e.target.value.slice(0,60))} placeholder="Sunday coffee run…" style={{width:'100%',padding:'12px 14px',borderRadius:14,fontSize:14,fontWeight:600,border:`2px solid ${C.ochre}30`,background:C.surface,color:C.ink,outline:'none',fontFamily:'inherit',marginBottom:14}}/>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Describe the vibe (optional)</div>
+          <input value={vibe} onChange={e=>setVibe(e.target.value.slice(0,100))} placeholder="Easy layers, warm tones" style={{width:'100%',padding:'12px 14px',borderRadius:14,fontSize:14,fontWeight:600,border:`2px solid ${C.ochre}30`,background:C.surface,color:C.ink,outline:'none',fontFamily:'inherit',marginBottom:14}}/>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Occasion</div>
+          <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4,marginBottom:14}} className="scrollbar-hide">
+            {OCCASIONS.map(o=>(
+              <button key={o.id} onClick={()=>setOccasion(o.id)} className="bouncy" style={{padding:'6px 14px',borderRadius:999,fontSize:11,fontWeight:800,whiteSpace:'nowrap',background:occasion===o.id?C.forest:o.bgColor,color:occasion===o.id?'white':C.ink,border:`2px solid ${occasion===o.id?C.forest:C.border}`,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
+                <span>{o.emoji}</span> {o.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Add a photo of the look (optional)</div>
+          {photo ? (
+            <div style={{position:'relative',borderRadius:18,overflow:'hidden',marginBottom:14,border:`1px solid ${C.border}`}}>
+              <img src={photo} alt="your look" style={{width:'100%',display:'block'}}/>
+              <button onClick={()=>setPhoto(null)} className="bouncy" style={{position:'absolute',top:8,right:8,width:28,height:28,borderRadius:'50%',background:'rgba(253,250,242,.92)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.ink}}>
+                <X size={13} strokeWidth={2.5}/>
+              </button>
+            </div>
+          ) : (
+            <button onClick={()=>photoInputRef.current?.click()} className="bouncy" style={{width:'100%',padding:'16px',borderRadius:18,marginBottom:14,background:C.surface,border:`2px dashed ${C.ochre}50`,color:C.ink,fontWeight:800,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+              <Camera size={16} strokeWidth={2.2} color={C.ochre}/> Snap or upload a photo
+            </button>
+          )}
+          <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhoto} style={{display:'none'}}/>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Pick your pieces — {selected.size} selected{(selected.size<2&&!photo)?' (choose 2+, or add a photo)':''}</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:20}}>
+            {items.map(it=>{
+              const on = selected.has(it.id);
+              return (
+                <button key={it.id} onClick={()=>toggleItem(it.id)} className="bouncy" style={{padding:0,borderRadius:16,overflow:'hidden',border: on?`3px solid ${C.ochre}`:`1px solid ${C.border}`,background:C.surface,cursor:'pointer',position:'relative',textAlign:'left'}}>
+                  <div style={{aspectRatio:'3/4',background:C.bgDeep}}>
+                    <img src={it.dataUrl} alt={it.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                  </div>
+                  {on && <div style={{position:'absolute',top:6,right:6,width:22,height:22,borderRadius:'50%',background:C.ochre,display:'flex',alignItems:'center',justifyContent:'center',color:'white'}}><Check size={13} strokeWidth={3}/></div>}
+                  <div style={{padding:'6px 8px',fontSize:10,fontWeight:700,color:C.ink,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{it.name}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <button onClick={()=>ready&&onContinue({title:title.trim(),vibe:vibe.trim(),occasion,item_ids:[...selected],photo})} disabled={!ready} className="grad-espresso noise bouncy" style={{width:'100%',padding:'15px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative',opacity:ready?1:.5}}>
+            Continue to post →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PostConfirm({outfit, displayName, publishing, itemById, onConfirm, onCancel, onChangeName}) {
   const its=(outfit.item_ids||[]).map(itemById).filter(Boolean);
   const om=OCCASIONS.find(o=>o.id===outfit.occasion);
@@ -1749,6 +1869,11 @@ function PostConfirm({outfit, displayName, publishing, itemById, onConfirm, onCa
             </div>
             <div style={{padding:'10px 14px'}}>
               <div className="serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:8}}>{outfit.title}</div>
+              {outfit.photo && (
+                <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,maxHeight:150}}>
+                  <img src={outfit.photo} alt="your look" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                </div>
+              )}
               <div style={{display:'flex',gap:4,height:60}}>
                 {its.slice(0,4).map(it=>(
                   <div key={it.id} style={{flex:1,borderRadius:10,overflow:'hidden',background:it.colorHex||C.bgDeep}}>
