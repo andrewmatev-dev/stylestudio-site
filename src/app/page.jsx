@@ -255,18 +255,6 @@ export default function StyleStudioLanding() {
               <SolidBtn href="/login">Get started free</SolidBtn>
               <GhostBtn onClick={() => scrollTo("features")}>Explore features</GhostBtn>
             </div>
-            <div style={{ display: "flex", gap: 44, flexWrap: "wrap" }}>
-              {[[12400, "+", "Closets digitized", 0], [486000, "+", "Outfits styled", 0], [4.9, "", "App Store rating", 1]].map(([n, suf, label, dec]) => (
-                <div key={label}>
-                  <div style={{ fontFamily: serif, fontSize: 30, color: T.accentBright }}>
-                    <Counter target={n} suffix={suf} decimals={dec} />
-                  </div>
-                  <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: T.inkFaint }}>
-                    {label}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Phone preview */}
