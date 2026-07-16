@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Sparkles, X, ChevronLeft, Trash2, Loader2, Check, Heart, Share2, Send, RefreshCw, Globe, Leaf } from 'lucide-react';
+import { Camera, Sparkles, X, ChevronLeft, Trash2, Loader2, Check, Heart, Share2, Send, RefreshCw, Globe, Leaf, LogOut } from 'lucide-react';
+import { getSupabase } from '@/lib/supabase';
 import { storage, togglePostLike } from '@/lib/storage';
 
 // ============ Warm Cream + Espresso & Gold System ============
@@ -776,7 +777,7 @@ export default function StyleStudio() {
 
       {showPacking && <PackingModal items={items} generating={generatingPack} result={packingResult} itemById={itemById} onGenerate={generatePackingList} onClose={()=>{setShowPacking(false);setPackingResult(null);}}/>}
 
-      {showProfile && <ProfileModal displayName={displayName} bio={profileBio} photo={profilePhoto} isPublic={defaultPublic} posts={posts} userId={userId} savedOutfits={savedOutfits} itemCount={items.length} onEditPhoto={()=>profilePhotoInputRef.current?.click()} onOpenSettings={()=>{setShowProfile(false);setShowSettings(true);}} onOpenPost={p=>{setShowProfile(false);setSelectedPost(p);}} onClose={()=>setShowProfile(false)}/>}
+      {showProfile && <ProfileModal displayName={displayName} bio={profileBio} photo={profilePhoto} isPublic={defaultPublic} posts={posts} userId={userId} savedOutfits={savedOutfits} itemCount={items.length} onEditPhoto={()=>profilePhotoInputRef.current?.click()} onOpenSettings={()=>{setShowProfile(false);setShowSettings(true);}} onOpenPost={p=>{setShowProfile(false);setSelectedPost(p);}} onLogout={async()=>{ try { await getSupabase().auth.signOut(); } catch(e) {} window.location.href='/'; }} onClose={()=>setShowProfile(false)}/>}
 
       {showSettings && <SettingsModal displayName={displayName} bio={profileBio} isPublic={defaultPublic} onSave={saveProfile} onDeleteAccount={deleteAccount} onClose={()=>setShowSettings(false)}/>}
 
@@ -2129,7 +2130,7 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
 }
 
 // ============ PROFILE MODAL ============
-function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOutfits, itemCount, onEditPhoto, onOpenSettings, onOpenPost, onClose}) {
+function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOutfits, itemCount, onEditPhoto, onOpenSettings, onOpenPost, onLogout, onClose}) {
   const myPosts = posts.filter(p => p.authorId === userId);
   const totalLikes = myPosts.reduce((sum, p) => sum + (p.likes||0), 0);
 
@@ -2213,6 +2214,11 @@ function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOu
               })}
             </div>
           )}
+
+          {/* Log out */}
+          <button onClick={()=>{ if (confirm('Log out of StyleStudio?')) onLogout(); }} className="bouncy" style={{marginTop:28,width:'100%',padding:'14px',borderRadius:18,background:C.surface,border:`1px solid ${C.border}`,color:C.clay,fontWeight:800,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            <LogOut size={15} strokeWidth={2.2}/> Log out
+          </button>
         </div>
       </div>
     </div>
