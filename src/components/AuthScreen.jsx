@@ -195,9 +195,10 @@ export default function AuthScreen() {
         </h2>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:1,marginBottom:34}}>
-        {[['Office','#D8CFC0'],['Date night','#C88B8B'],['Weekend','#A8B89C']].map(([l,c],i)=>(
-          <div key={i} style={{background:c,aspectRatio:'3/4',display:'flex',alignItems:'flex-end',padding:10}}>
-            <span style={{fontFamily:"'Fraunces',serif",fontSize:12,fontWeight:700,fontStyle:'italic',color:INK}}>{l}</span>
+        {[['Office','#D8CFC0','/assets/auth-office.jpg'],['Date night','#C88B8B','/assets/auth-date.jpg'],['Weekend','#A8B89C','/assets/auth-weekend.jpg']].map(([l,c,img],i)=>(
+          <div key={i} style={{background:c,aspectRatio:'3/4',display:'flex',alignItems:'flex-end',padding:10,position:'relative',overflow:'hidden'}}>
+            <img src={img} alt="" style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.currentTarget.style.display='none';}}/>
+            <span style={{fontFamily:"'Fraunces',serif",fontSize:12,fontWeight:700,fontStyle:'italic',color:INK,position:'relative',background:'rgba(251,247,240,.9)',padding:'3px 9px',borderRadius:999}}>{l}</span>
           </div>
         ))}
       </div>
