@@ -236,6 +236,19 @@ export default function StyleStudio() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [showPacking, setShowPacking] = useState(false);
   const [showCreateLook, setShowCreateLook] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const sb = getSupabase();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return;
+        const { data } = await sb.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+        if (data?.is_admin === true) setIsAdmin(true);
+      } catch (e) {}
+    })();
+  }, []);
   const [packingResult, setPackingResult] = useState(null);
   const [generatingPack, setGeneratingPack] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -777,7 +790,7 @@ export default function StyleStudio() {
 
       {showPacking && <PackingModal items={items} generating={generatingPack} result={packingResult} itemById={itemById} onGenerate={generatePackingList} onClose={()=>{setShowPacking(false);setPackingResult(null);}}/>}
 
-      {showProfile && <ProfileModal displayName={displayName} bio={profileBio} photo={profilePhoto} isPublic={defaultPublic} posts={posts} userId={userId} savedOutfits={savedOutfits} itemCount={items.length} onEditPhoto={()=>profilePhotoInputRef.current?.click()} onOpenSettings={()=>{setShowProfile(false);setShowSettings(true);}} onOpenPost={p=>{setShowProfile(false);setSelectedPost(p);}} onLogout={async()=>{ try { await getSupabase().auth.signOut(); } catch(e) {} window.location.href='/'; }} onClose={()=>setShowProfile(false)}/>}
+      {showProfile && <ProfileModal displayName={displayName} bio={profileBio} photo={profilePhoto} isPublic={defaultPublic} posts={posts} userId={userId} savedOutfits={savedOutfits} itemCount={items.length} onEditPhoto={()=>profilePhotoInputRef.current?.click()} onOpenSettings={()=>{setShowProfile(false);setShowSettings(true);}} onOpenPost={p=>{setShowProfile(false);setSelectedPost(p);}} onLogout={async()=>{ try { await getSupabase().auth.signOut(); } catch(e) {} window.location.href='/'; }} isAdmin={isAdmin} onClose={()=>setShowProfile(false)}/>}
 
       {showSettings && <SettingsModal displayName={displayName} bio={profileBio} isPublic={defaultPublic} onSave={saveProfile} onDeleteAccount={deleteAccount} onClose={()=>setShowSettings(false)}/>}
 
@@ -2130,7 +2143,7 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
 }
 
 // ============ PROFILE MODAL ============
-function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOutfits, itemCount, onEditPhoto, onOpenSettings, onOpenPost, onLogout, onClose}) {
+function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOutfits, itemCount, onEditPhoto, onOpenSettings, onOpenPost, onLogout, isAdmin, onClose}) {
   const myPosts = posts.filter(p => p.authorId === userId);
   const totalLikes = myPosts.reduce((sum, p) => sum + (p.likes||0), 0);
 
@@ -2213,6 +2226,13 @@ function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOu
                 );
               })}
             </div>
+          )}
+
+          {/* Admin — owner only */}
+          {isAdmin && (
+            <button onClick={()=>{ window.location.href='/admin'; }} className="bouncy" style={{marginTop:28,width:'100%',padding:'14px',borderRadius:18,background:C.forest,border:'none',color:'white',fontWeight:800,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+              <SparkDot size={10} color={C.ochre}/> Admin
+            </button>
           )}
 
           {/* Log out */}
