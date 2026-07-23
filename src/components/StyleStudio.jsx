@@ -802,7 +802,7 @@ export default function StyleStudio() {
         </div>
       )}
 
-      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:'none'}}/>
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFile} style={{display:'none'}}/>
       <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleProfilePhoto} style={{display:'none'}}/>
     </div>
   );
