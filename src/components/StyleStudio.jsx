@@ -1,65 +1,69 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Sparkles, X, ChevronLeft, Trash2, Loader2, Check, Heart, Share2, Send, RefreshCw, Globe, Leaf } from 'lucide-react';
+import { Camera, Sparkles, X, ChevronLeft, Trash2, Loader2, Check, Heart, Share2, Send, RefreshCw, Globe, Leaf, LogOut } from 'lucide-react';
+import { getSupabase } from '@/lib/supabase';
 import { storage, togglePostLike } from '@/lib/storage';
 
-// ============ Forest Green + Warm Beige System ============
+// ============ Warm Cream + Espresso & Gold System ============
 const C = {
-  // Backgrounds — sage stone + verdant linen (RH gallery with more green)
-  bg:          '#B0AE88',   // sage-stone — main bg (RH wall + plants)
-  bgDeep:      '#9A9874',   // deeper sage-stone
-  surface:     '#DCDBB6',   // sage linen parchment — cards
-  surfaceAlt:  '#CFCEA8',   // deeper sage linen
+  // Backgrounds — warm cream pages
+  bg:          '#FDFAF2',   // warm cream — main page background
+  bgDeep:      '#F7F1E2',   // slightly deeper cream (photo placeholders)
+  surface:     '#F2E9D7',   // beige — cards, tiles, bottom nav
+  surfaceAlt:  '#ECE1CA',   // deeper beige
 
-  // Text — warm dark ink
-  ink:         '#162010',   // deep forest-tinted black
-  inkSoft:     'rgba(18,28,14,0.62)',
-  inkFaint:    'rgba(18,28,14,0.40)',
+  // Text — espresso ink
+  ink:         '#42392C',   // espresso — primary text
+  inkSoft:     'rgba(66,57,44,0.62)',
+  inkFaint:    'rgba(66,57,44,0.40)',
 
   // Borders
-  border:      'rgba(18,28,14,0.08)',
-  borderStrong:'rgba(18,28,14,0.15)',
+  border:      'rgba(0,0,0,0.06)',
+  borderStrong:'rgba(0,0,0,0.12)',
 
-  // ── Forest greens — the hero colors ──
-  forest:      '#0F2010',   // very dark forest (nav, primary buttons)
-  forestMid:   '#1A3C1C',   // mid forest for gradients
-  forestLight: '#2A5C2D',   // lighter forest for highlights
+  // ── Espresso — primary buttons & anchors ──
+  forest:      '#42392C',   // espresso (primary buttons, active states)
+  forestMid:   '#554A39',   // lighter espresso for gradients
+  forestLight: '#6A5C46',   // lightest espresso
 
-  sage:        '#1A3C1C',   // exact logo green — deep forest
-  sageMid:     '#0F2010',   // matches logo darkest forest
-  sageSoft:    '#C0D8C4',   // soft sage fill
+  sage:        '#C89F4E',   // gold accent (labels, italic words, icons)
+  sageMid:     '#42392C',   // espresso
+  sageSoft:    '#E8EBDB',   // casual tint
 
-  green:       '#3A7040',   // vivid mid green — active states
-  greenSoft:   '#C4D8C8',   // soft green fill
+  green:       '#3A7D44',   // functional green — keep/save states
+  greenSoft:   '#E8EBDB',
 
-  // ── Warm earthy accents ──
-  ochre:       '#9C7028',   // antique brass — CTA accent (RH brass)
-  ochreDark:   '#6E4E18',
-  ochreSoft:   '#E8D2A0',   // warm brass-tinted fill
+  // ── Gold accents ──
+  ochre:       '#C89F4E',   // gold — icons, avatar letter, accents
+  ochreDark:   '#A98336',   // deep gold
+  ochreSoft:   '#F1E3C8',   // travel tint
 
-  clay:        '#704A26',   // walnut brown (RH wood)
-  claySoft:    '#D8BC98',   // warm walnut fill
+  clay:        '#42392C',   // espresso
+  claySoft:    '#F2E1DE',   // date-night tint
 
-  sand:        '#D4B87A',   // golden sand
-  sandSoft:    '#F5E8C8',   // light sand
+  sand:        '#C89F4E',   // gold
+  sandSoft:    '#F1E3C8',   // travel tint
 
-  caramel:     '#C8963C',   // warm caramel
-  caramelSoft: '#F2E0B0',
+  caramel:     '#C89F4E',
+  caramelSoft: '#F1E3C8',
 
-  bark:        '#2E1C0E',   // deep espresso walnut
-  moss:        '#3D5230',   // deep moss
+  bark:        '#42392C',   // espresso
+  moss:        '#42392C',
 };
 
+// Chip / tile tints — rotate through these three
+const TINTS = ['#F2E1DE', '#E8EBDB', '#F1E3C8']; // date night · casual · travel
+
 const OCCASIONS = [
-  { id: 'work',      label: 'Work',         sub: 'Office ready',       color: C.sage,        bgColor: C.sageSoft,   emoji: '💼' },
-  { id: 'date',      label: 'Date night',   sub: 'Turn heads',         color: C.ochreDark,   bgColor: C.ochreSoft,  emoji: '🌿' },
-  { id: 'casual',    label: 'Casual day',   sub: 'Easy & real',        color: C.forestLight, bgColor: C.sageSoft,   emoji: '☕' },
-  { id: 'brunch',    label: 'Brunch',       sub: 'Weekend golden',     color: C.clay,        bgColor: C.claySoft,   emoji: '🥐' },
-  { id: 'formal',    label: 'Formal event', sub: 'Dress to impress',   color: C.forest,      bgColor: C.sageSoft,   emoji: '✨' },
-  { id: 'night-out', label: 'Night out',    sub: 'Dark & striking',    color: C.bark,        bgColor: C.claySoft,   emoji: '🌙' },
-  { id: 'travel',    label: 'Travel day',   sub: 'Pack light',         color: C.sageMid,     bgColor: C.sandSoft,   emoji: '✈️' },
-  { id: 'gym',       label: 'Workout',      sub: 'Move in style',      color: C.clay,        bgColor: C.ochreSoft,  emoji: '⚡' }
+  { id: 'work',      label: 'Work',         sub: 'Office ready',       color: C.ink, bgColor: '#F1E3C8', emoji: '💼' },
+  { id: 'date',      label: 'Date night',   sub: 'Turn heads',         color: C.ink, bgColor: '#F2E1DE', emoji: '🌿' },
+  { id: 'casual',    label: 'Casual day',   sub: 'Easy & real',        color: C.ink, bgColor: '#E8EBDB', emoji: '☕' },
+  { id: 'brunch',    label: 'Brunch',       sub: 'Weekend golden',     color: C.ink, bgColor: '#F1E3C8', emoji: '🥐' },
+  { id: 'formal',    label: 'Formal event', sub: 'Dress to impress',   color: C.ink, bgColor: '#F2E1DE', emoji: '✨' },
+  { id: 'night-out', label: 'Night out',    sub: 'Dark & striking',    color: C.ink, bgColor: '#E8EBDB', emoji: '🌙' },
+  { id: 'travel',    label: 'Travel day',   sub: 'Pack light',         color: C.ink, bgColor: '#F1E3C8', emoji: '✈️' },
+  { id: 'gym',       label: 'Workout',      sub: 'Move in style',      color: C.ink, bgColor: '#F2E1DE', emoji: '⚡' }
 ];
 
 function BeltIcon({ size = 14 }) {
@@ -152,18 +156,37 @@ const CATEGORY_GROUPS = [
 ];
 
 const STYLE_TAG_COLORS = {
-  minimal:    { bg: '#E4DECA', fg: C.bark },
-  classic:    { bg: C.sageSoft, fg: C.sageMid },
-  preppy:     { bg: C.sandSoft, fg: C.clay },
-  streetwear: { bg: C.claySoft, fg: C.bark },
-  romantic:   { bg: C.ochreSoft, fg: C.ochreDark },
-  sporty:     { bg: C.claySoft, fg: C.clay },
-  edgy:       { bg: '#E0D8C8', fg: C.bark },
-  bohemian:   { bg: C.ochreSoft, fg: C.ochreDark },
-  elegant:    { bg: C.sageSoft, fg: C.sageMid },
-  default:    { bg: C.sandSoft, fg: C.clay }
+  minimal:    { bg: '#E8EBDB', fg: C.ink },
+  classic:    { bg: '#F1E3C8', fg: C.ink },
+  preppy:     { bg: '#F2E1DE', fg: C.ink },
+  streetwear: { bg: '#E8EBDB', fg: C.ink },
+  romantic:   { bg: '#F2E1DE', fg: C.ink },
+  sporty:     { bg: '#F1E3C8', fg: C.ink },
+  edgy:       { bg: '#E8EBDB', fg: C.ink },
+  bohemian:   { bg: '#F1E3C8', fg: C.ink },
+  elegant:    { bg: '#F2E1DE', fg: C.ink },
+  default:    { bg: '#E8EBDB', fg: C.ink }
 };
 const tagColor = t => STYLE_TAG_COLORS[t?.toLowerCase()] || STYLE_TAG_COLORS.default;
+
+function compressLookPhoto(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 900; let {width, height} = img;
+        if (width > height && width > maxDim) { height = (height*maxDim)/width; width = maxDim; }
+        else if (height > maxDim) { width = (width*maxDim)/height; height = maxDim; }
+        const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        res(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = rej; img.src = e.target.result;
+    };
+    reader.onerror = rej; reader.readAsDataURL(file);
+  });
+}
 
 function uid(p = '') { return `${p}${Date.now()}_${Math.random().toString(36).slice(2,9)}`; }
 
@@ -212,6 +235,20 @@ export default function StyleStudio() {
   const [loadingComments, setLoadingComments] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [showPacking, setShowPacking] = useState(false);
+  const [showCreateLook, setShowCreateLook] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const sb = getSupabase();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return;
+        const { data } = await sb.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+        if (data?.is_admin === true) setIsAdmin(true);
+      } catch (e) {}
+    })();
+  }, []);
   const [packingResult, setPackingResult] = useState(null);
   const [generatingPack, setGeneratingPack] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -387,7 +424,7 @@ export default function StyleStudio() {
       const om = OCCASIONS.find(o => o.id === outfit.occasion);
       const embItems = (outfit.item_ids||[]).map(id => { const it = items.find(i => i.id === id); if (!it) return null; return { id: it.id, name: it.name, brand: it.brand||'', type: it.type, color: it.color, colorHex: it.colorHex, dataUrl: it.dataUrl }; }).filter(Boolean);
       const pid = newUUID();
-      const post = { id: pid, title: outfit.title, vibe: outfit.vibe, styling_tip: outfit.styling_tip||'', occasion: outfit.occasion, occasionLabel: om?.label||outfit.occasion, occasionColor: om?.color, occasionBg: om?.bgColor, occasionEmoji: om?.emoji, items: embItems, author: displayName, authorId: userId, dateCreated: Date.now(), likes: 0 };
+      const post = { id: pid, title: outfit.title, vibe: outfit.vibe, photo: outfit.photo||null, styling_tip: outfit.styling_tip||'', occasion: outfit.occasion, occasionLabel: om?.label||outfit.occasion, occasionColor: om?.color, occasionBg: om?.bgColor, occasionEmoji: om?.emoji, items: embItems, author: displayName, authorId: userId, dateCreated: Date.now(), likes: 0 };
       await storage.set(`post:${pid}`, JSON.stringify(post), true);
       setPosts(prev => [post,...prev]); setPostingOutfit(null); showToast('Shared to Inspire 🌿');
     } catch(e) { showToast('Could not share'); }
@@ -654,10 +691,11 @@ export default function StyleStudio() {
     .scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
     .bouncy{transition:transform .15s cubic-bezier(.34,1.56,.64,1)}
     .bouncy:active{transform:scale(.92)}
-    .grad-forest{background:linear-gradient(135deg,${C.forest} 0%,${C.forestMid} 100%)}
-    .grad-ochre{background:linear-gradient(135deg,${C.ochre} 0%,${C.clay} 100%)}
-    .grad-sage{background:linear-gradient(135deg,${C.sageMid} 0%,${C.forestLight} 100%)}
-    .grad-bark{background:linear-gradient(135deg,${C.bark} 0%,${C.forest} 100%)}
+    .grad-espresso{background:linear-gradient(135deg,#42392C 0%,#554A39 100%)}
+    .grad-forest{background:linear-gradient(135deg,#F2E9D7 0%,#ECE1CA 100%);border:1px solid rgba(0,0,0,0.06)}
+    .grad-ochre{background:linear-gradient(135deg,#F2E9D7 0%,#F1E3C8 100%);border:1px solid rgba(0,0,0,0.06)}
+    .grad-sage{background:linear-gradient(135deg,#F2E9D7 0%,#E8EBDB 100%);border:1px solid rgba(0,0,0,0.06)}
+    .grad-bark{background:linear-gradient(135deg,#F2E9D7 0%,#F2E1DE 100%);border:1px solid rgba(0,0,0,0.06)}
     .noise::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.1) 1px,transparent 1px);background-size:4px 4px;pointer-events:none;mix-blend-mode:overlay}
     .texture{background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
   `;
@@ -675,7 +713,7 @@ export default function StyleStudio() {
       </div>
 
       {/* Header */}
-      <header className="texture" style={{position:'sticky',top:0,zIndex:30,backdropFilter:'blur(16px)',background:`rgba(176,174,136,.94)`,borderBottom:`1px solid ${C.border}`}}>
+      <header className="texture" style={{position:'sticky',top:0,zIndex:30,backdropFilter:'blur(16px)',background:`rgba(253,250,242,.94)`,borderBottom:`1px solid ${C.border}`}}>
         <div style={{padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           {view ? (
             <button onClick={()=>{setView(null);setPendingItem(null);setError(null);}} style={{display:'flex',alignItems:'center',gap:4,fontSize:14,fontWeight:700,color:C.sageMid,background:'none',border:'none',cursor:'pointer',padding:0}}>
@@ -684,7 +722,7 @@ export default function StyleStudio() {
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{width:36,height:36,borderRadius:10,background:C.surface,border:`1.5px solid ${C.sage}30`,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 2px 8px rgba(15,32,16,.10)`}}>
-                <LeafHangerLogo size={28} fg={C.forest} ac={C.ochre}/>
+                <LeafHangerLogo size={28} fg={C.ochre} ac={C.ochre}/>
               </div>
               <span className="serif" style={{fontSize:20,fontWeight:700,letterSpacing:'-0.02em',color:C.ink}}>
                 style<span style={{fontStyle:'italic',fontWeight:300,color:C.sage}}>studio</span>
@@ -723,7 +761,7 @@ export default function StyleStudio() {
         ) : tab==='style' ? (
           <StyleView genderPref={genderPref} onGender={saveGenderPref} onOccasion={generateOutfits} count={items.length} onAdd={()=>fileInputRef.current?.click()} onPackTrip={()=>setShowPacking(true)}/>
         ) : tab==='inspire' ? (
-          <InspireView posts={filteredPosts} total={posts.length} feedFilter={feedFilter} setFeedFilter={setFeedFilter} loading={loadingFeed} userId={userId} liked={likedPosts} onOpen={setSelectedPost} onLike={toggleLike}/>
+          <InspireView posts={filteredPosts} total={posts.length} feedFilter={feedFilter} setFeedFilter={setFeedFilter} loading={loadingFeed} userId={userId} liked={likedPosts} onOpen={setSelectedPost} onLike={toggleLike} onCreate={()=>{ if (items.length<2) { showToast('Add at least 2 pieces first'); } else { setShowCreateLook(true); } }}/>
         ) : tab==='saved' ? (
           <SavedView saved={savedOutfits} itemById={itemById} onOpen={setSelectedOutfit} onDelete={deleteSaved}/>
         ) : null}
@@ -731,11 +769,11 @@ export default function StyleStudio() {
 
       {/* Bottom Nav */}
       {!view && (
-        <nav style={{position:'fixed',bottom:0,left:0,right:0,zIndex:30,background:`rgba(15,32,16,.98)`,borderTop:`1px solid rgba(255,255,255,.08)`,backdropFilter:'blur(20px)'}}>
+        <nav style={{position:'fixed',bottom:0,left:0,right:0,zIndex:30,background:'#F2E9D7',borderTop:'1px solid rgba(0,0,0,0.06)',backdropFilter:'blur(20px)'}}>
           <div style={{padding:'10px 8px 14px',display:'flex',alignItems:'center',justifyContent:'space-around',maxWidth:440,margin:'0 auto'}}>
             <NavBtn icon={<ShirtIcon/>} label="Closet" active={tab==='closet'} onClick={()=>setTab('closet')} ac={C.ochre}/>
             <NavBtn icon={<Sparkles size={19} strokeWidth={1.8}/>} label="Style" active={tab==='style'} onClick={()=>setTab('style')} ac={C.sand}/>
-            <button onClick={()=>fileInputRef.current?.click()} className="bouncy" style={{width:52,height:52,borderRadius:'50%',background:`linear-gradient(135deg,${C.ochre},${C.clay})`,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',boxShadow:`0 8px 24px ${C.ochre}60`,position:'relative',marginTop:-8}} aria-label="Add">
+            <button onClick={()=>fileInputRef.current?.click()} className="bouncy" style={{width:52,height:52,borderRadius:'50%',background:C.forest,border:'3px solid #C89F4E',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',boxShadow:'0 8px 24px rgba(66,57,44,.35)',position:'relative',marginTop:-8}} aria-label="Add">
               <Camera size={22} strokeWidth={2.4} color="white"/>
             </button>
             <NavBtn icon={<Globe size={19} strokeWidth={1.8}/>} label="Inspire" active={tab==='inspire'} onClick={()=>setTab('inspire')} ac={C.sageSoft}/>
@@ -748,21 +786,23 @@ export default function StyleStudio() {
       {selectedPost && <PostDetail post={selectedPost} userId={userId} liked={likedPosts.has(selectedPost.id)} comments={postComments[selectedPost.id]||[]} loadingComments={loadingComments} submittingComment={submittingComment} onLoadComments={()=>loadComments(selectedPost.id)} onAddComment={t=>addComment(selectedPost, t)} onDeleteComment={cid=>deleteComment(selectedPost, cid)} displayName={displayName} onLike={()=>toggleLike(selectedPost)} onShare={()=>shareOutfit(selectedPost)} onDelete={()=>{if(confirm('Remove this post?'))deletePost(selectedPost.id);}} onClose={()=>{setSelectedPost(null);}}/>}
       {showNameSetup && <NameModal initial={displayName} onSave={saveDisplayName} onCancel={()=>{setShowNameSetup(false);setPostingOutfit(null);}}/>}
       {postingOutfit && !showNameSetup && displayName && <PostConfirm outfit={postingOutfit} displayName={displayName} publishing={publishing} itemById={itemById} onConfirm={()=>publishPost(postingOutfit)} onCancel={()=>setPostingOutfit(null)} onChangeName={()=>setShowNameSetup(true)}/>}
+      {showCreateLook && <CreateLookModal items={items} onCancel={()=>setShowCreateLook(false)} onContinue={o=>{setShowCreateLook(false); requestPost(o);}}/>}
+
       {showPacking && <PackingModal items={items} generating={generatingPack} result={packingResult} itemById={itemById} onGenerate={generatePackingList} onClose={()=>{setShowPacking(false);setPackingResult(null);}}/>}
 
-      {showProfile && <ProfileModal displayName={displayName} bio={profileBio} photo={profilePhoto} isPublic={defaultPublic} posts={posts} userId={userId} savedOutfits={savedOutfits} itemCount={items.length} onEditPhoto={()=>profilePhotoInputRef.current?.click()} onOpenSettings={()=>{setShowProfile(false);setShowSettings(true);}} onOpenPost={p=>{setShowProfile(false);setSelectedPost(p);}} onClose={()=>setShowProfile(false)}/>}
+      {showProfile && <ProfileModal displayName={displayName} bio={profileBio} photo={profilePhoto} isPublic={defaultPublic} posts={posts} userId={userId} savedOutfits={savedOutfits} itemCount={items.length} onEditPhoto={()=>profilePhotoInputRef.current?.click()} onOpenSettings={()=>{setShowProfile(false);setShowSettings(true);}} onOpenPost={p=>{setShowProfile(false);setSelectedPost(p);}} onLogout={async()=>{ try { await getSupabase().auth.signOut(); } catch(e) {} window.location.href='/'; }} isAdmin={isAdmin} onClose={()=>setShowProfile(false)}/>}
 
       {showSettings && <SettingsModal displayName={displayName} bio={profileBio} isPublic={defaultPublic} onSave={saveProfile} onDeleteAccount={deleteAccount} onClose={()=>setShowSettings(false)}/>}
 
       {toast && (
         <div style={{position:'fixed',bottom:100,left:'50%',transform:'translateX(-50%)',zIndex:50}} className="scale">
-          <div className="grad-forest noise" style={{position:'relative',padding:'12px 20px',borderRadius:999,fontSize:13,fontWeight:700,color:'white',display:'flex',alignItems:'center',gap:8,boxShadow:`0 10px 32px ${C.forest}80`,whiteSpace:'nowrap'}}>
+          <div className="grad-espresso noise" style={{position:'relative',padding:'12px 20px',borderRadius:999,fontSize:13,fontWeight:700,color:'white',display:'flex',alignItems:'center',gap:8,boxShadow:'0 10px 32px rgba(66,57,44,.35)',whiteSpace:'nowrap'}}>
             <SparkDot size={10} color={C.ochre}/> {toast}
           </div>
         </div>
       )}
 
-      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFile} style={{display:'none'}}/>
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:'none'}}/>
       <input ref={profilePhotoInputRef} type="file" accept="image/*" onChange={handleProfilePhoto} style={{display:'none'}}/>
     </div>
   );
@@ -771,9 +811,9 @@ export default function StyleStudio() {
 function NavBtn({icon, label, active, onClick, ac, badge}) {
   return (
     <button onClick={onClick} style={{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 10px',background:'none',border:'none',cursor:'pointer',flex:1}} className="bouncy">
-      <div style={{color: active ? ac : 'rgba(255,255,255,.35)', transition:'color .2s'}}>{icon}</div>
-      <span style={{fontSize:'9.5px',fontWeight:800,letterSpacing:'.05em',textTransform:'uppercase',color: active ? ac : 'rgba(255,255,255,.35)'}}>{label}</span>
-      {active && <div style={{position:'absolute',bottom:-2,width:4,height:4,borderRadius:'50%',background:ac}}/>}
+      <div style={{color: active ? C.ink : 'rgba(66,57,44,.45)', transition:'color .2s'}}>{icon}</div>
+      <span style={{fontSize:'9.5px',fontWeight:800,letterSpacing:'.05em',textTransform:'uppercase',color: active ? C.ink : 'rgba(66,57,44,.45)'}}>{label}</span>
+      {active && <div style={{position:'absolute',bottom:-2,width:4,height:4,borderRadius:'50%',background:'#C89F4E'}}/>}
       {badge>0 && <span style={{position:'absolute',top:0,right:2,minWidth:15,height:15,padding:'0 3px',borderRadius:999,background:C.ochre,color:'white',fontSize:9,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center'}} className="scale">{badge}</span>}
     </button>
   );
@@ -783,8 +823,8 @@ function ShirtIcon() {
   return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>;
 }
 
-function SectionTag({children, color=C.sage}) {
-  return <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:999,background:color,color:C.surface,fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',marginBottom:8}}><SparkDot size={8} color={C.ochreSoft}/>{children}</div>;
+function SectionTag({children, color=C.ochre}) {
+  return <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'4px 12px',borderRadius:999,background:'rgba(200,159,78,0.14)',color:C.ochre,fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',marginBottom:8}}><SparkDot size={8} color={C.ochre}/>{children}</div>;
 }
 
 // ============ CLOSET VIEW ============
@@ -792,7 +832,7 @@ function ClosetView({items, total, typeCount, filter, setFilter, searchQuery, se
   if (total === 0) {
     return (
       <div style={{padding:'28px 18px'}} className="fade">
-        <div className="grad-forest noise texture" style={{borderRadius:28,padding:'32px 24px',position:'relative',overflow:'hidden',color:'white'}}>
+        <div className="grad-forest noise texture" style={{borderRadius:28,padding:'32px 24px',position:'relative',overflow:'hidden',color:C.ink}}>
           <div style={{position:'absolute',top:16,right:20}} className="float"><LeafDot size={32} color={`${C.ochre}40`}/></div>
           <div style={{position:'absolute',bottom:16,left:16,opacity:.4}} className="float" ><SparkDot size={24} color={C.sand}/></div>
           <div style={{position:'relative'}}>
@@ -816,13 +856,15 @@ function ClosetView({items, total, typeCount, filter, setFilter, searchQuery, se
           ))}
         </div>
 
-        <button onClick={onAdd} className="grad-ochre noise bouncy" style={{marginTop:16,width:'100%',padding:'16px',borderRadius:20,border:'none',color:'white',fontWeight:800,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative',boxShadow:`0 10px 28px ${C.ochre}50`}}>
+        <button onClick={onAdd} className="grad-espresso noise bouncy" style={{marginTop:16,width:'100%',padding:'16px',borderRadius:20,border:'none',color:'white',fontWeight:800,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative',boxShadow:`0 10px 28px ${C.ochre}50`}}>
           <Camera size={18} strokeWidth={2.4}/> Add your first piece
         </button>
 
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginTop:24}}>
-          {[[C.sageSoft,'👕'],[C.sageSoft,'👖'],[C.claySoft,'👟'],[C.sageSoft,'🧥'],[C.sageSoft,'👗'],[C.ochreSoft,'👜'],[C.sageSoft,'🕶️'],[C.claySoft,'🧢']].map(([bg,e],i)=>(
-            <div key={i} style={{aspectRatio:'1',borderRadius:18,background:bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>{e}</div>
+          {[1,2,3,4,5,6,7,8].map(n=>(
+            <div key={n} style={{aspectRatio:'3/4',borderRadius:18,background:TINTS[(n-1)%3],overflow:'hidden'}}>
+              <img src={`/assets/closet-${n}.jpg`} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} onError={e=>{e.currentTarget.style.display='none';}}/>
+            </div>
           ))}
         </div>
       </div>
@@ -894,10 +936,10 @@ function ClosetView({items, total, typeCount, filter, setFilter, searchQuery, se
                   { label:'Other',    count: typeCount['other']||0,                                                                 icon:'✨' },
                 ].filter(b => b.count > 0).slice(0, 8);
                 return breakdown.map((b,i) => (
-                  <div key={i} style={{textAlign:'center',padding:'6px 4px',borderRadius:12,background:'rgba(255,255,255,.08)'}}>
+                  <div key={i} style={{textAlign:'center',padding:'6px 4px',borderRadius:12,background:'rgba(66,57,44,.06)'}}>
                     <div style={{fontSize:14,marginBottom:2}}>{b.icon==='belt'?<span style={{color:C.ochre}}><BeltIcon size={13}/></span>:b.icon}</div>
-                    <div className="serif" style={{fontSize:18,fontWeight:700,color:'white',lineHeight:1}}>{b.count}</div>
-                    <div style={{fontSize:8,fontWeight:800,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(255,255,255,.6)',marginTop:2}}>{b.label}</div>
+                    <div className="serif" style={{fontSize:18,fontWeight:700,color:C.ink,lineHeight:1}}>{b.count}</div>
+                    <div style={{fontSize:8,fontWeight:800,letterSpacing:'0.08em',textTransform:'uppercase',color:C.inkSoft,marginTop:2}}>{b.label}</div>
                   </div>
                 ));
               })()}
@@ -937,26 +979,26 @@ function ClosetView({items, total, typeCount, filter, setFilter, searchQuery, se
         </div>
       ) : (
         <div style={{padding:'0 14px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}} className="stagger">
-          {items.map(item => <ClosetCard key={item.id} item={item} onDelete={onDelete} onWear={onWear}/>)}
+          {items.map((item, idx) => <ClosetCard key={item.id} item={item} idx={idx} onDelete={onDelete} onWear={onWear}/>)}
         </div>
       )}
     </div>
   );
 }
 
-function ClosetCard({item, onDelete, onWear}) {
+function ClosetCard({item, idx=0, onDelete, onWear}) {
   const [acts, setActs] = useState(false);
   const tm = TYPE_FILTERS.find(t=>t.id===item.type);
   const wears = item.wearCount || 0;
   return (
-    <div onClick={()=>setActs(s=>!s)} className="bouncy" style={{borderRadius:20,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`,boxShadow:`0 2px 10px rgba(0,0,0,.25)`,cursor:'pointer',position:'relative'}}>
-      <div style={{aspectRatio:'3/4',overflow:'hidden',position:'relative',background:item.colorHex||C.bgDeep}}>
+    <div onClick={()=>setActs(s=>!s)} className="bouncy" style={{borderRadius:20,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`,boxShadow:`0 2px 10px rgba(0,0,0,.08)`,cursor:'pointer',position:'relative'}}>
+      <div style={{aspectRatio:'3/4',overflow:'hidden',position:'relative',background:TINTS[idx%3]}}>
         <img src={item.dataUrl} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-        <div style={{position:'absolute',top:8,left:8,background:`rgba(251,247,237,.94)`,backdropFilter:'blur(8px)',borderRadius:12,padding:'3px 8px',fontSize:9,fontWeight:800,textTransform:'uppercase',letterSpacing:'.1em',display:'flex',alignItems:'center',gap:4,color:C.ink}}>
+        <div style={{position:'absolute',top:8,left:8,background:`rgba(253,250,242,.94)`,backdropFilter:'blur(8px)',borderRadius:12,padding:'3px 8px',fontSize:9,fontWeight:800,textTransform:'uppercase',letterSpacing:'.1em',display:'flex',alignItems:'center',gap:4,color:C.ink}}>
           {tm?.icon==='belt'?<BeltIcon size={9}/>:<span style={{fontSize:11}}>{tm?.icon}</span>} {tm?.label}
         </div>
         {wears > 0 && (
-          <div style={{position:'absolute',top:8,right:8,background:C.forest,color:C.ochre,borderRadius:12,padding:'3px 7px',fontSize:9,fontWeight:800,letterSpacing:'.05em',display:'flex',alignItems:'center',gap:3,boxShadow:'0 2px 6px rgba(0,0,0,0.2)'}}>
+          <div style={{position:'absolute',top:8,right:8,background:C.forest,color:C.ochre,borderRadius:12,padding:'3px 7px',fontSize:9,fontWeight:800,letterSpacing:'.05em',display:'flex',alignItems:'center',gap:3,boxShadow:'0 2px 6px rgba(0,0,0,0.12)'}}>
             <span>👟</span> {wears}
           </div>
         )}
@@ -973,10 +1015,10 @@ function ClosetCard({item, onDelete, onWear}) {
       </div>
       {acts && (
         <div style={{position:'absolute',top:8,right:8,display:'flex',flexDirection:'column',gap:6}} className="fade">
-          <button onClick={e=>{e.stopPropagation();onWear&&onWear(item.id);setActs(false);}} title="Mark as worn" style={{width:32,height:32,borderRadius:'50%',background:C.ochre,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white',boxShadow:'0 3px 10px rgba(0,0,0,0.25)'}}>
+          <button onClick={e=>{e.stopPropagation();onWear&&onWear(item.id);setActs(false);}} title="Mark as worn" style={{width:32,height:32,borderRadius:'50%',background:C.ochre,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white',boxShadow:'0 3px 10px rgba(0,0,0,0.10)'}}>
             <span style={{fontSize:14}}>👟</span>
           </button>
-          <button onClick={e=>{e.stopPropagation();if(confirm(`Remove ${item.name}?`))onDelete(item.id);}} title="Remove" style={{width:32,height:32,borderRadius:'50%',background:C.forest,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white',boxShadow:'0 3px 10px rgba(0,0,0,0.25)'}}>
+          <button onClick={e=>{e.stopPropagation();if(confirm(`Remove ${item.name}?`))onDelete(item.id);}} title="Remove" style={{width:32,height:32,borderRadius:'50%',background:C.forest,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white',boxShadow:'0 3px 10px rgba(0,0,0,0.10)'}}>
             <Trash2 size={13} strokeWidth={2.2}/>
           </button>
         </div>
@@ -999,11 +1041,11 @@ function AddView({pendingItem, analyzing, error, onConfirm, onCancel, onUpdate})
       </div>
 
       <div style={{padding:'0 18px'}}>
-        <div style={{borderRadius:24,overflow:'hidden',marginBottom:20,boxShadow:`0 8px 32px rgba(0,0,0,.35)`}}>
+        <div style={{borderRadius:24,overflow:'hidden',marginBottom:20,boxShadow:`0 8px 32px rgba(0,0,0,.12)`}}>
           <div style={{aspectRatio:'4/5',position:'relative',background:a?.colorHex||C.bgDeep}}>
             <img src={pendingItem.dataUrl} alt="new" style={{width:'100%',height:'100%',objectFit:'cover'}}/>
             {analyzing && (
-              <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,background:'rgba(242,232,208,.90)',backdropFilter:'blur(8px)'}}>
+              <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,background:'rgba(253,250,242,.92)',backdropFilter:'blur(8px)'}}>
                 <Leaf size={30} strokeWidth={1.5} className="pulse" style={{color:C.sage}}/>
                 <div style={{fontSize:11,fontWeight:800,letterSpacing:'0.2em',textTransform:'uppercase',color:C.sageMid}}>Analyzing</div>
               </div>
@@ -1135,7 +1177,7 @@ function AddView({pendingItem, analyzing, error, onConfirm, onCancel, onUpdate})
 
             <div style={{display:'flex',gap:10,paddingTop:4}}>
               <button onClick={onCancel} className="bouncy" style={{flex:1,padding:'14px',borderRadius:18,fontSize:14,fontWeight:800,background:C.surface,border:`2px solid ${C.borderStrong}`,color:C.ink,cursor:'pointer'}}>Discard</button>
-              <button onClick={onConfirm} className="grad-forest noise bouncy" style={{flex:1,padding:'14px',borderRadius:18,fontSize:14,fontWeight:800,color:'white',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,position:'relative',boxShadow:`0 8px 24px ${C.forest}50`}}>
+              <button onClick={onConfirm} className="grad-espresso noise bouncy" style={{flex:1,padding:'14px',borderRadius:18,fontSize:14,fontWeight:800,color:'white',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,position:'relative',boxShadow:`0 8px 24px ${C.forest}50`}}>
                 <Check size={16} strokeWidth={2.5}/> Add to closet
               </button>
             </div>
@@ -1151,13 +1193,13 @@ function StyleView({genderPref, onGender, onOccasion, count, onAdd, onPackTrip})
   if (count < 2) {
     return (
       <div style={{padding:'28px 18px'}} className="fade">
-        <div className="grad-bark noise" style={{borderRadius:28,padding:'32px 24px',color:'white',position:'relative',overflow:'hidden'}}>
+        <div className="grad-bark noise" style={{borderRadius:28,padding:'32px 24px',color:C.ink,position:'relative',overflow:'hidden'}}>
           <div style={{position:'absolute',top:16,right:16}} className="float"><LeafDot size={28} color={`${C.sand}50`}/></div>
           <div style={{position:'relative'}}>
-            <SectionTag color={`rgba(255,255,255,.2)`}>Style assistant</SectionTag>
+            <SectionTag>Style assistant</SectionTag>
             <h2 className="serif" style={{fontSize:30,fontWeight:700,letterSpacing:'-0.02em',margin:'8px 0 12px'}}>Add a few <span style={{fontStyle:'italic',fontWeight:300}}>pieces</span> first.</h2>
             <p style={{fontSize:14,opacity:.9,lineHeight:1.6,margin:'0 0 20px'}}>Need at least 2 items to mix & match outfits for you.</p>
-            <button onClick={onAdd} style={{padding:'12px 20px',borderRadius:999,fontSize:13,fontWeight:800,background:'white',color:C.bark,border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:6}} className="bouncy">
+            <button onClick={onAdd} style={{padding:'12px 20px',borderRadius:999,fontSize:13,fontWeight:800,background:C.forest,color:'white',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:6}} className="bouncy">
               <Camera size={15} strokeWidth={2.4}/> Add a piece
             </button>
           </div>
@@ -1202,7 +1244,7 @@ function StyleView({genderPref, onGender, onOccasion, count, onAdd, onPackTrip})
       <div style={{padding:'24px 20px 12px',fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.sage}}>Going somewhere?</div>
 
       <div style={{padding:'0 14px'}}>
-        <button onClick={onPackTrip} className="grad-bark noise bouncy" style={{width:'100%',padding:'18px 18px',borderRadius:22,border:'none',color:'white',cursor:'pointer',display:'flex',alignItems:'center',gap:14,textAlign:'left',position:'relative',overflow:'hidden',boxShadow:`0 8px 24px ${C.bark}50`}}>
+        <button onClick={onPackTrip} className="grad-espresso noise bouncy" style={{width:'100%',padding:'18px 18px',borderRadius:22,border:'none',color:'white',cursor:'pointer',display:'flex',alignItems:'center',gap:14,textAlign:'left',position:'relative',overflow:'hidden',boxShadow:`0 8px 24px ${C.bark}50`}}>
           <div style={{fontSize:34}}>🧳</div>
           <div style={{flex:1}}>
             <div className="serif" style={{fontSize:18,fontWeight:700,letterSpacing:'-0.01em'}}>Pack for a trip</div>
@@ -1275,7 +1317,7 @@ function OutfitCard({outfit, idx, itemById, onTap, onSave, onShare, onReject, is
   return (
     <div onClick={onTap} className="bouncy" style={{
       borderRadius:22, overflow:'hidden', background:C.surface, border:`1px solid ${C.border}`,
-      boxShadow:`0 4px 20px rgba(0,0,0,.28)`, cursor:'pointer',
+      boxShadow:`0 4px 20px rgba(0,0,0,.10)`, cursor:'pointer',
       transition:'transform .25s ease, opacity .25s ease',
       transform: leaving==='reject' ? 'translateX(-120%) rotate(-6deg)' : leaving==='save' ? 'scale(0.97)' : 'none',
       opacity: leaving==='reject' ? 0 : 1,
@@ -1319,7 +1361,7 @@ function OutfitCard({outfit, idx, itemById, onTap, onSave, onShare, onReject, is
 }
 
 // ============ INSPIRE VIEW ============
-function InspireView({posts, total, feedFilter, setFeedFilter, loading, userId, liked, onOpen, onLike}) {
+function InspireView({posts, total, feedFilter, setFeedFilter, loading, userId, liked, onOpen, onLike, onCreate}) {
   return (
     <div className="fade">
       <div style={{padding:'16px 20px 16px'}}>
@@ -1328,12 +1370,15 @@ function InspireView({posts, total, feedFilter, setFeedFilter, loading, userId, 
           Outfits <span style={{fontStyle:'italic',fontWeight:300,color:C.sage}}>in the wild</span>
         </h2>
         <p style={{fontSize:13,color:C.inkSoft,fontWeight:600,margin:0}}>What everyone's wearing</p>
+        <button onClick={onCreate} className="grad-espresso noise bouncy" style={{marginTop:14,width:'100%',padding:'14px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative'}}>
+          <Sparkles size={15} strokeWidth={2.2}/> Post your own look
+        </button>
       </div>
 
       <div style={{overflowX:'auto',marginBottom:14}} className="scrollbar-hide">
         <div style={{display:'flex',gap:8,padding:'0 20px',width:'max-content'}}>
-          {[{id:'all',l:'All',e:'✦'},...OCCASIONS.map(o=>({id:o.id,l:o.label,e:o.emoji}))].map(f=>(
-            <button key={f.id} onClick={()=>setFeedFilter(f.id)} className="bouncy" style={{padding:'6px 14px',borderRadius:999,fontSize:11,fontWeight:800,whiteSpace:'nowrap',background:feedFilter===f.id?C.forest:C.surface,color:feedFilter===f.id?'white':C.ink,border:`2px solid ${feedFilter===f.id?C.forest:C.border}`,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
+          {[{id:'all',l:'All',e:'✦'},...OCCASIONS.map(o=>({id:o.id,l:o.label,e:o.emoji,tint:o.bgColor}))].map(f=>(
+            <button key={f.id} onClick={()=>setFeedFilter(f.id)} className="bouncy" style={{padding:'6px 14px',borderRadius:999,fontSize:11,fontWeight:800,whiteSpace:'nowrap',background:feedFilter===f.id?C.forest:(f.tint||C.surface),color:feedFilter===f.id?'white':C.ink,border:`2px solid ${feedFilter===f.id?C.forest:C.border}`,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
               <span>{f.e}</span> {f.l}
             </button>
           ))}
@@ -1344,9 +1389,9 @@ function InspireView({posts, total, feedFilter, setFeedFilter, loading, userId, 
         <div style={{padding:'48px 0',textAlign:'center'}}><Leaf size={22} className="pulse" style={{color:C.sage,margin:'0 auto 8px'}}/><div style={{fontSize:11,fontWeight:800,letterSpacing:'0.2em',textTransform:'uppercase',color:C.sage}}>Loading feed</div></div>
       ) : total===0 ? (
         <div style={{padding:'0 18px'}} className="fade">
-          <div className="grad-sage noise" style={{borderRadius:28,padding:'32px 24px',color:'white',position:'relative',overflow:'hidden'}}>
+          <div className="grad-sage noise" style={{borderRadius:28,padding:'32px 24px',color:C.ink,position:'relative',overflow:'hidden'}}>
             <div style={{position:'absolute',top:16,right:16}} className="float"><SparkDot size={22} color={`${C.sand}60`}/></div>
-            <Globe size={28} strokeWidth={1.5} style={{marginBottom:12}}/>
+            <Globe size={28} strokeWidth={1.5} style={{marginBottom:12,color:C.ochre}}/>
             <h2 className="serif" style={{fontSize:28,fontWeight:700,letterSpacing:'-0.02em',margin:'0 0 10px'}}>Be the <span style={{fontStyle:'italic',fontWeight:300}}>first</span> to post.</h2>
             <p style={{fontSize:14,opacity:.9,lineHeight:1.6,margin:0}}>Save a look you love, then share it here. Your outfit will be visible to all StyleStudio users.</p>
           </div>
@@ -1369,7 +1414,7 @@ function PostCard({post, userId, isLiked, onTap, onLike}) {
   const isOwn = post.authorId===userId;
   const its = post.items||[];
   return (
-    <div onClick={onTap} className="bouncy" style={{borderRadius:22,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`,boxShadow:`0 4px 20px rgba(0,0,0,.28)`,cursor:'pointer'}}>
+    <div onClick={onTap} className="bouncy" style={{borderRadius:22,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`,boxShadow:`0 4px 20px rgba(0,0,0,.10)`,cursor:'pointer'}}>
       <div style={{padding:'14px 14px 10px',display:'flex',alignItems:'center',gap:10}}>
         <div style={{width:40,height:40,borderRadius:'50%',background:post.occasionBg||C.sageSoft,border:`2px solid ${post.occasionColor||C.sage}30`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
           <span style={{fontSize:14,fontWeight:800,color:post.occasionColor||C.sage}}>{(post.author||'?').charAt(0).toUpperCase()}</span>
@@ -1387,16 +1432,21 @@ function PostCard({post, userId, isLiked, onTap, onLike}) {
         <div className="serif" style={{fontSize:19,fontWeight:700,letterSpacing:'-0.01em',color:C.ink,marginBottom:5}}>{post.title}</div>
         <p style={{fontSize:13,color:C.inkSoft,fontWeight:600,margin:0,lineHeight:1.5}}>{post.vibe}</p>
       </div>
-      <div style={{display:'grid',gap:2,padding:'0 12px 12px',gridTemplateColumns:`repeat(${Math.min(its.length,4)},1fr)`,height:130}}>
+      {post.photo && (
+        <div style={{padding:'0 12px 12px'}}>
+          <img src={post.photo} alt={post.title} style={{width:'100%',display:'block',borderRadius:14}}/>
+        </div>
+      )}
+      {its.length>0 && <div style={{display:'grid',gap:2,padding:'0 12px 12px',gridTemplateColumns:`repeat(${Math.min(its.length,4)},1fr)`,height:130}}>
         {its.slice(0,4).map((it,i)=>(
           <div key={it.id||i} style={{borderRadius:12,overflow:'hidden',position:'relative',background:it.colorHex||C.bgDeep}}>
             <img src={it.dataUrl} alt={it.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
             {its.length>4 && i===3 && <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:16,color:'white',background:'rgba(26,20,13,.55)'}}>+{its.length-4}</div>}
           </div>
         ))}
-      </div>
+      </div>}
       <div style={{padding:'10px 14px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',borderTop:`1px solid ${C.border}`}}>
-        <button onClick={onLike} className="bouncy" style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:999,background:isLiked?C.ochreSoft:'transparent',border:'none',cursor:'pointer',color:isLiked?C.ochre:C.inkSoft}}>
+        <button onClick={onLike} className="bouncy" style={{display:'flex',alignItems:'center',gap:6,padding:'7px 12px',borderRadius:999,background:isLiked?C.ochreSoft:'transparent',border:'none',cursor:'pointer',color:C.ochre}}>
           <Heart size={15} strokeWidth={2} fill={isLiked?C.ochre:'none'}/>
           <span style={{fontSize:12,fontWeight:800}}>{post.likes||0}</span>
         </button>
@@ -1419,9 +1469,9 @@ function SavedView({saved, itemById, onOpen, onDelete}) {
   if (saved.length===0) {
     return (
       <div style={{padding:'28px 18px'}} className="fade">
-        <div className="grad-ochre noise" style={{borderRadius:28,padding:'32px 24px',color:'white',position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',top:12,right:16}} className="float"><Heart size={28} fill="rgba(255,255,255,.3)" strokeWidth={0}/></div>
-          <Heart size={28} strokeWidth={1.5} style={{marginBottom:12}}/>
+        <div className="grad-ochre noise" style={{borderRadius:28,padding:'32px 24px',color:C.ink,position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:12,right:16}} className="float"><Heart size={28} fill="rgba(200,159,78,.35)" strokeWidth={0}/></div>
+          <Heart size={28} strokeWidth={1.5} style={{marginBottom:12,color:C.ochre}}/>
           <h2 className="serif" style={{fontSize:28,fontWeight:700,letterSpacing:'-0.02em',margin:'0 0 10px'}}>Save looks you <span style={{fontStyle:'italic',fontWeight:300}}>love.</span></h2>
           <p style={{fontSize:14,opacity:.9,lineHeight:1.6,margin:0}}>Tap the heart on any outfit. Your favorites live here forever.</p>
         </div>
@@ -1445,7 +1495,7 @@ function SavedView({saved, itemById, onOpen, onDelete}) {
 function SavedCard({outfit, itemById, onOpen, onDelete}) {
   const its = (outfit.item_ids||[]).map(itemById).filter(Boolean);
   return (
-    <div onClick={onOpen} className="bouncy" style={{borderRadius:20,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`,boxShadow:`0 2px 10px rgba(0,0,0,.25)`,cursor:'pointer',position:'relative'}}>
+    <div onClick={onOpen} className="bouncy" style={{borderRadius:20,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`,boxShadow:`0 2px 10px rgba(0,0,0,.08)`,cursor:'pointer',position:'relative'}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:1,aspectRatio:'1',background:outfit.occasionBg||C.sageSoft}}>
         {its.slice(0,4).map(it=><div key={it.id} style={{overflow:'hidden',background:it.colorHex||C.bgDeep}}><img src={it.dataUrl} alt={it.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>)}
         {[...Array(Math.max(0,4-its.length))].map((_,i)=><div key={`e${i}`} style={{background:outfit.occasionBg||C.sageSoft}}/>)}
@@ -1457,7 +1507,7 @@ function SavedCard({outfit, itemById, onOpen, onDelete}) {
         </div>
         <div className="serif" style={{fontSize:13,fontWeight:700,color:C.ink,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{outfit.title}</div>
       </div>
-      <button onClick={e=>{e.stopPropagation();onDelete();}} style={{position:'absolute',top:8,right:8,width:26,height:26,borderRadius:'50%',background:'rgba(251,247,237,.92)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.ink}}>
+      <button onClick={e=>{e.stopPropagation();onDelete();}} style={{position:'absolute',top:8,right:8,width:26,height:26,borderRadius:'50%',background:'rgba(253,250,242,.92)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.ink}}>
         <X size={12} strokeWidth={2.5}/>
       </button>
     </div>
@@ -1481,7 +1531,7 @@ function OutfitDetail({outfit, itemById, onClose, onShare, onSave, isSaved, onPo
   return (
     <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(26,20,13,.55)',backdropFilter:'blur(10px)'}} className="fade">
       <div style={{position:'absolute',left:0,right:0,bottom:0,top:32,borderRadius:'28px 28px 0 0',overflowY:'auto',background:C.bg}} className="up">
-        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(176,174,136,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
           <div style={{display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px',borderRadius:999,background:om?.bgColor,color:om?.color,fontSize:11,fontWeight:800}}>
             <span style={{fontSize:16}}>{om?.emoji}</span> {om?.label||'The look'}
           </div>
@@ -1504,13 +1554,13 @@ function OutfitDetail({outfit, itemById, onClose, onShare, onSave, isSaved, onPo
           </div>
 
           {its.length>0 && onWear && (
-            <button onClick={handleWear} className="grad-forest noise bouncy" style={{width:'100%',marginBottom:12,padding:'13px',borderRadius:999,fontSize:13,fontWeight:800,color:'white',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative',boxShadow:`0 6px 20px ${C.forest}40`}}>
+            <button onClick={handleWear} className="grad-espresso noise bouncy" style={{width:'100%',marginBottom:12,padding:'13px',borderRadius:999,fontSize:13,fontWeight:800,color:'white',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative',boxShadow:`0 6px 20px ${C.forest}40`}}>
               <span style={{fontSize:16}}>👟</span> {wornToast ? 'Logged ✓' : `I wore this outfit (${its.length} pieces)`}
             </button>
           )}
 
           {its.length>0 && (
-            <button onClick={onPost} className="grad-sage noise bouncy" style={{width:'100%',marginBottom:20,padding:'13px',borderRadius:999,fontSize:13,fontWeight:800,color:'white',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,position:'relative',boxShadow:`0 6px 20px ${C.sage}50`}}>
+            <button onClick={onPost} className="grad-espresso noise bouncy" style={{width:'100%',marginBottom:20,padding:'13px',borderRadius:999,fontSize:13,fontWeight:800,color:'white',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,position:'relative',boxShadow:`0 6px 20px ${C.sage}50`}}>
               <Globe size={15} strokeWidth={2}/> Post to Inspire 🌿
             </button>
           )}
@@ -1532,7 +1582,7 @@ function OutfitDetail({outfit, itemById, onClose, onShare, onSave, isSaved, onPo
           </div>
 
           {outfit.styling_tip && (
-            <div className="grad-bark noise" style={{borderRadius:22,padding:'20px',marginBottom:16,color:'white',position:'relative'}}>
+            <div className="grad-bark noise" style={{borderRadius:22,padding:'20px',marginBottom:16,color:C.ink,position:'relative'}}>
               <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',opacity:.7,marginBottom:8}}>Stylist's note</div>
               <p className="serif" style={{fontSize:17,fontStyle:'italic',fontWeight:400,lineHeight:1.5,margin:0}}>"{outfit.styling_tip}"</p>
             </div>
@@ -1560,7 +1610,7 @@ function PostDetail({post, userId, liked, comments=[], loadingComments, submitti
   return (
     <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(26,20,13,.55)',backdropFilter:'blur(10px)'}} className="fade">
       <div style={{position:'absolute',left:0,right:0,bottom:0,top:32,borderRadius:'28px 28px 0 0',overflowY:'auto',background:C.bg}} className="up">
-        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(176,174,136,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             <div style={{width:36,height:36,borderRadius:'50%',background:post.occasionBg||C.sageSoft,display:'flex',alignItems:'center',justifyContent:'center',border:`2px solid ${post.occasionColor||C.sage}40`}}>
               <span style={{fontSize:13,fontWeight:800,color:post.occasionColor||C.sage}}>{(post.author||'?').charAt(0).toUpperCase()}</span>
@@ -1581,6 +1631,12 @@ function PostDetail({post, userId, liked, comments=[], loadingComments, submitti
           <h2 className="serif" style={{fontSize:38,fontWeight:700,letterSpacing:'-0.02em',color:C.ink,margin:'0 0 8px'}}>{post.title}</h2>
           <p style={{fontSize:14,color:C.inkSoft,fontWeight:600,lineHeight:1.6,margin:'0 0 20px'}}>{post.vibe}</p>
 
+          {post.photo && (
+            <div style={{borderRadius:20,overflow:'hidden',marginBottom:20,border:`1px solid ${C.border}`}}>
+              <img src={post.photo} alt={post.title} style={{width:'100%',display:'block'}}/>
+            </div>
+          )}
+
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20}}>
             <button onClick={onLike} className="bouncy" style={{padding:'12px',borderRadius:999,fontSize:13,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:liked?C.ochre:C.surface,color:liked?'white':C.ink,border:`2px solid ${liked?C.ochre:C.borderStrong}`,cursor:'pointer'}}>
               <Heart size={15} strokeWidth={2} fill={liked?'white':'none'}/> {post.likes||0} {(post.likes||0)===1?'like':'likes'}
@@ -1596,7 +1652,7 @@ function PostDetail({post, userId, liked, comments=[], loadingComments, submitti
             )}
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
+          {its.length>0 && <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
             {its.map(it=>{
               const tm=TYPE_FILTERS.find(t=>t.id===it.type);
               return <div key={it.id} style={{borderRadius:18,overflow:'hidden',background:C.surface,border:`1px solid ${C.border}`}}>
@@ -1610,10 +1666,10 @@ function PostDetail({post, userId, liked, comments=[], loadingComments, submitti
                 </div>
               </div>;
             })}
-          </div>
+          </div>}
 
           {post.styling_tip && (
-            <div className="grad-bark noise" style={{borderRadius:22,padding:'20px',color:'white',position:'relative',marginBottom:20}}>
+            <div className="grad-bark noise" style={{borderRadius:22,padding:'20px',color:C.ink,position:'relative',marginBottom:20}}>
               <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',opacity:.7,marginBottom:8}}>Stylist's note</div>
               <p className="serif" style={{fontSize:17,fontStyle:'italic',fontWeight:400,lineHeight:1.5,margin:0}}>"{post.styling_tip}"</p>
             </div>
@@ -1708,7 +1764,7 @@ function NameModal({initial, onSave, onCancel}) {
           <div style={{fontSize:10,fontWeight:800,color:C.inkFaint,textAlign:'right',marginBottom:16}}>{name.length}/24</div>
           <div style={{display:'flex',gap:10}}>
             <button onClick={onCancel} className="bouncy" style={{flex:1,padding:'13px',borderRadius:999,fontSize:14,fontWeight:800,background:C.surface,border:`2px solid ${C.borderStrong}`,color:C.ink,cursor:'pointer'}}>Cancel</button>
-            <button onClick={()=>onSave(name)} disabled={!name.trim()} className="grad-sage noise bouncy" style={{flex:1,padding:'13px',borderRadius:999,fontSize:14,fontWeight:800,color:'white',border:'none',cursor:'pointer',position:'relative',opacity:name.trim()?1:.5}}>Continue →</button>
+            <button onClick={()=>onSave(name)} disabled={!name.trim()} className="grad-espresso noise bouncy" style={{flex:1,padding:'13px',borderRadius:999,fontSize:14,fontWeight:800,color:'white',border:'none',cursor:'pointer',position:'relative',opacity:name.trim()?1:.5}}>Continue →</button>
           </div>
         </div>
       </div>
@@ -1717,6 +1773,90 @@ function NameModal({initial, onSave, onCancel}) {
 }
 
 // ============ POST CONFIRM ============
+function CreateLookModal({items, onCancel, onContinue}) {
+  const [title, setTitle] = useState('');
+  const [vibe, setVibe] = useState('');
+  const [occasion, setOccasion] = useState('casual');
+  const [selected, setSelected] = useState(new Set());
+  const [photo, setPhoto] = useState(null);
+  const photoInputRef = useRef(null);
+
+  function toggleItem(id) {
+    setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  async function handlePhoto(e) {
+    const file = e.target.files?.[0]; if (!file) return;
+    try { setPhoto(await compressLookPhoto(file)); } catch(err) {}
+    finally { if (photoInputRef.current) photoInputRef.current.value=''; }
+  }
+  const ready = title.trim().length > 0 && (selected.size >= 2 || !!photo);
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(26,20,13,.55)',backdropFilter:'blur(10px)'}} className="fade">
+      <div style={{position:'absolute',inset:0,overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
+        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+          <span className="serif" style={{fontSize:18,fontWeight:700,color:C.ink}}>Create your look</span>
+          <button onClick={onCancel} className="bouncy" style={{width:36,height:36,borderRadius:'50%',background:C.forest,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white'}}>
+            <X size={16} strokeWidth={2.5}/>
+          </button>
+        </div>
+        <div style={{maxWidth:440,margin:'0 auto',padding:'18px 18px 40px',background:C.bg,minHeight:'100%'}}>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Name your look</div>
+          <input value={title} onChange={e=>setTitle(e.target.value.slice(0,60))} placeholder="Sunday coffee run…" style={{width:'100%',padding:'12px 14px',borderRadius:14,fontSize:14,fontWeight:600,border:`2px solid ${C.ochre}30`,background:C.surface,color:C.ink,outline:'none',fontFamily:'inherit',marginBottom:14}}/>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Describe the vibe (optional)</div>
+          <input value={vibe} onChange={e=>setVibe(e.target.value.slice(0,100))} placeholder="Easy layers, warm tones" style={{width:'100%',padding:'12px 14px',borderRadius:14,fontSize:14,fontWeight:600,border:`2px solid ${C.ochre}30`,background:C.surface,color:C.ink,outline:'none',fontFamily:'inherit',marginBottom:14}}/>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Occasion</div>
+          <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4,marginBottom:14}} className="scrollbar-hide">
+            {OCCASIONS.map(o=>(
+              <button key={o.id} onClick={()=>setOccasion(o.id)} className="bouncy" style={{padding:'6px 14px',borderRadius:999,fontSize:11,fontWeight:800,whiteSpace:'nowrap',background:occasion===o.id?C.forest:o.bgColor,color:occasion===o.id?'white':C.ink,border:`2px solid ${occasion===o.id?C.forest:C.border}`,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
+                <span>{o.emoji}</span> {o.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Add a photo of the look (optional)</div>
+          {photo ? (
+            <div style={{position:'relative',borderRadius:18,overflow:'hidden',marginBottom:14,border:`1px solid ${C.border}`}}>
+              <img src={photo} alt="your look" style={{width:'100%',display:'block'}}/>
+              <button onClick={()=>setPhoto(null)} className="bouncy" style={{position:'absolute',top:8,right:8,width:28,height:28,borderRadius:'50%',background:'rgba(253,250,242,.92)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.ink}}>
+                <X size={13} strokeWidth={2.5}/>
+              </button>
+            </div>
+          ) : (
+            <button onClick={()=>photoInputRef.current?.click()} className="bouncy" style={{width:'100%',padding:'16px',borderRadius:18,marginBottom:14,background:C.surface,border:`2px dashed ${C.ochre}50`,color:C.ink,fontWeight:800,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+              <Camera size={16} strokeWidth={2.2} color={C.ochre}/> Snap or upload a photo
+            </button>
+          )}
+          <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhoto} style={{display:'none'}}/>
+
+          <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',color:C.ochre,marginBottom:8}}>Pick your pieces — {selected.size} selected{(selected.size<2&&!photo)?' (choose 2+, or add a photo)':''}</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:20}}>
+            {items.map(it=>{
+              const on = selected.has(it.id);
+              return (
+                <button key={it.id} onClick={()=>toggleItem(it.id)} className="bouncy" style={{padding:0,borderRadius:16,overflow:'hidden',border: on?`3px solid ${C.ochre}`:`1px solid ${C.border}`,background:C.surface,cursor:'pointer',position:'relative',textAlign:'left'}}>
+                  <div style={{aspectRatio:'3/4',background:C.bgDeep}}>
+                    <img src={it.dataUrl} alt={it.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                  </div>
+                  {on && <div style={{position:'absolute',top:6,right:6,width:22,height:22,borderRadius:'50%',background:C.ochre,display:'flex',alignItems:'center',justifyContent:'center',color:'white'}}><Check size={13} strokeWidth={3}/></div>}
+                  <div style={{padding:'6px 8px',fontSize:10,fontWeight:700,color:C.ink,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{it.name}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <button onClick={()=>ready&&onContinue({title:title.trim(),vibe:vibe.trim(),occasion,item_ids:[...selected],photo})} disabled={!ready} className="grad-espresso noise bouncy" style={{width:'100%',padding:'15px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,position:'relative',opacity:ready?1:.5}}>
+            Continue to post →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PostConfirm({outfit, displayName, publishing, itemById, onConfirm, onCancel, onChangeName}) {
   const its=(outfit.item_ids||[]).map(itemById).filter(Boolean);
   const om=OCCASIONS.find(o=>o.id===outfit.occasion);
@@ -1743,6 +1883,11 @@ function PostConfirm({outfit, displayName, publishing, itemById, onConfirm, onCa
             </div>
             <div style={{padding:'10px 14px'}}>
               <div className="serif" style={{fontSize:15,fontWeight:700,color:C.ink,marginBottom:8}}>{outfit.title}</div>
+              {outfit.photo && (
+                <div style={{borderRadius:12,overflow:'hidden',marginBottom:8,maxHeight:150}}>
+                  <img src={outfit.photo} alt="your look" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                </div>
+              )}
               <div style={{display:'flex',gap:4,height:60}}>
                 {its.slice(0,4).map(it=>(
                   <div key={it.id} style={{flex:1,borderRadius:10,overflow:'hidden',background:it.colorHex||C.bgDeep}}>
@@ -1755,7 +1900,7 @@ function PostConfirm({outfit, displayName, publishing, itemById, onConfirm, onCa
 
           <div style={{display:'flex',gap:10}}>
             <button onClick={onCancel} disabled={publishing} className="bouncy" style={{flex:1,padding:'13px',borderRadius:999,fontSize:14,fontWeight:800,background:C.surface,border:`2px solid ${C.borderStrong}`,color:C.ink,cursor:'pointer',opacity:publishing?.5:1}}>Not yet</button>
-            <button onClick={onConfirm} disabled={publishing} className="grad-sage noise bouncy" style={{flex:1,padding:'13px',borderRadius:999,fontSize:14,fontWeight:800,color:'white',border:'none',cursor:'pointer',position:'relative',display:'flex',alignItems:'center',justifyContent:'center',gap:6,opacity:publishing?.6:1}}>
+            <button onClick={onConfirm} disabled={publishing} className="grad-espresso noise bouncy" style={{flex:1,padding:'13px',borderRadius:999,fontSize:14,fontWeight:800,color:'white',border:'none',cursor:'pointer',position:'relative',display:'flex',alignItems:'center',justifyContent:'center',gap:6,opacity:publishing?.6:1}}>
               {publishing?<Loader2 className="spin" size={14}/>:<Send size={14} strokeWidth={2.4}/>}
               {publishing?'Posting…':'Share it 🌿'}
             </button>
@@ -1812,7 +1957,7 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
     return (
       <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(26,20,13,.55)',backdropFilter:'blur(10px)'}} className="fade">
         <div style={{position:'absolute',left:0,right:0,bottom:0,top:32,borderRadius:'28px 28px 0 0',overflowY:'auto',background:C.bg}} className="up">
-          <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(176,174,136,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+          <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{fontSize:22}}>🧳</div>
               <div>
@@ -1826,7 +1971,7 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
           </div>
 
           <div style={{padding:'20px'}}>
-            <div className="grad-bark noise" style={{borderRadius:20,padding:'16px 18px',marginBottom:16,color:'white'}}>
+            <div className="grad-bark noise" style={{borderRadius:20,padding:'16px 18px',marginBottom:16,color:C.ink}}>
               <div style={{fontSize:10,fontWeight:800,letterSpacing:'0.18em',textTransform:'uppercase',opacity:.7,marginBottom:6}}>Overview</div>
               <p className="serif" style={{fontSize:16,fontStyle:'italic',fontWeight:400,lineHeight:1.5,margin:0}}>"{result.summary}"</p>
             </div>
@@ -1900,7 +2045,7 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
               </div>
             )}
 
-            <button onClick={onClose} className="grad-forest noise bouncy" style={{width:'100%',padding:'14px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:14,cursor:'pointer'}}>
+            <button onClick={onClose} className="grad-espresso noise bouncy" style={{width:'100%',padding:'14px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:14,cursor:'pointer'}}>
               Done
             </button>
           </div>
@@ -1913,7 +2058,7 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
   return (
     <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(26,20,13,.55)',backdropFilter:'blur(10px)'}} className="fade">
       <div style={{position:'absolute',left:0,right:0,bottom:0,top:32,borderRadius:'28px 28px 0 0',overflowY:'auto',background:C.bg}} className="up">
-        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(176,174,136,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
           <SectionTag color={C.sageMid}>Pack for a trip</SectionTag>
           <button onClick={onClose} className="bouncy" style={{width:36,height:36,borderRadius:'50%',background:C.forest,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white'}}>
             <X size={15} strokeWidth={2.5}/>
@@ -1982,7 +2127,7 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
             </div>
           </div>
 
-          <button onClick={handleBuild} disabled={generating || activities.length===0 || items.length<2} className="grad-forest noise bouncy" style={{width:'100%',padding:'16px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:(generating||activities.length===0||items.length<2)?.5:1}}>
+          <button onClick={handleBuild} disabled={generating || activities.length===0 || items.length<2} className="grad-espresso noise bouncy" style={{width:'100%',padding:'16px',borderRadius:18,border:'none',color:'white',fontWeight:800,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:(generating||activities.length===0||items.length<2)?.5:1}}>
             {generating ? <><Loader2 className="spin" size={16}/> Building your packing list…</> : <>🧳 Build packing list</>}
           </button>
 
@@ -1998,14 +2143,14 @@ function PackingModal({items, generating, result, itemById, onGenerate, onClose}
 }
 
 // ============ PROFILE MODAL ============
-function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOutfits, itemCount, onEditPhoto, onOpenSettings, onOpenPost, onClose}) {
+function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOutfits, itemCount, onEditPhoto, onOpenSettings, onOpenPost, onLogout, isAdmin, onClose}) {
   const myPosts = posts.filter(p => p.authorId === userId);
   const totalLikes = myPosts.reduce((sum, p) => sum + (p.likes||0), 0);
 
   return (
     <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(26,20,13,.55)',backdropFilter:'blur(10px)'}} className="fade">
       <div style={{position:'absolute',left:0,right:0,bottom:0,top:32,borderRadius:'28px 28px 0 0',overflowY:'auto',background:C.bg}} className="up">
-        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(176,174,136,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
           <SectionTag color={C.sageMid}>Your profile</SectionTag>
           <div style={{display:'flex',gap:8}}>
             <button onClick={onOpenSettings} className="bouncy" style={{width:36,height:36,borderRadius:'50%',background:C.surface,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.sage}} aria-label="Settings">
@@ -2047,7 +2192,7 @@ function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOu
               { n: totalLikes, l: 'Likes' },
             ].map((s,i)=>(
               <div key={i} className="grad-forest noise" style={{borderRadius:18,padding:'16px 8px',textAlign:'center',position:'relative'}}>
-                <div className="serif" style={{fontSize:26,fontWeight:700,color:'white',lineHeight:1}}>{s.n}</div>
+                <div className="serif" style={{fontSize:26,fontWeight:700,color:C.ink,lineHeight:1}}>{s.n}</div>
                 <div style={{fontSize:9,fontWeight:800,letterSpacing:'0.15em',textTransform:'uppercase',color:C.ochre,marginTop:4}}>{s.l}</div>
               </div>
             ))}
@@ -2082,6 +2227,18 @@ function ProfileModal({displayName, bio, photo, isPublic, posts, userId, savedOu
               })}
             </div>
           )}
+
+          {/* Admin — owner only */}
+          {isAdmin && (
+            <button onClick={()=>{ window.location.href='/admin'; }} className="bouncy" style={{marginTop:28,width:'100%',padding:'14px',borderRadius:18,background:C.forest,border:'none',color:'white',fontWeight:800,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+              <SparkDot size={10} color={C.ochre}/> Admin
+            </button>
+          )}
+
+          {/* Log out */}
+          <button onClick={()=>{ if (confirm('Log out of StyleStudio?')) onLogout(); }} className="bouncy" style={{marginTop:28,width:'100%',padding:'14px',borderRadius:18,background:C.surface,border:`1px solid ${C.border}`,color:C.clay,fontWeight:800,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            <LogOut size={15} strokeWidth={2.2}/> Log out
+          </button>
         </div>
       </div>
     </div>
@@ -2102,7 +2259,7 @@ function SettingsModal({displayName, bio, isPublic, onSave, onDeleteAccount, onC
   return (
     <div style={{position:'fixed',inset:0,zIndex:55,background:'rgba(26,20,13,.6)',backdropFilter:'blur(10px)'}} className="fade">
       <div style={{position:'absolute',left:0,right:0,bottom:0,top:32,borderRadius:'28px 28px 0 0',overflowY:'auto',background:C.bg}} className="up">
-        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(176,174,136,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
+        <div style={{position:'sticky',top:0,zIndex:10,padding:'14px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',background:`rgba(253,250,242,.94)`,backdropFilter:'blur(12px)',borderBottom:`1px solid ${C.border}`}}>
           <SectionTag color={C.sageMid}>Settings</SectionTag>
           <button onClick={onClose} className="bouncy" style={{width:36,height:36,borderRadius:'50%',background:C.forest,border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'white'}}>
             <X size={15} strokeWidth={2.5}/>
@@ -2139,7 +2296,7 @@ function SettingsModal({displayName, bio, isPublic, onSave, onDeleteAccount, onC
             </div>
           </div>
 
-          <button onClick={handleSave} className="grad-forest noise bouncy" style={{width:'100%',padding:'15px',borderRadius:16,border:'none',color:'white',fontWeight:800,fontSize:15,cursor:'pointer',marginBottom:24,position:'relative'}}>
+          <button onClick={handleSave} className="grad-espresso noise bouncy" style={{width:'100%',padding:'15px',borderRadius:16,border:'none',color:'white',fontWeight:800,fontSize:15,cursor:'pointer',marginBottom:24,position:'relative'}}>
             Save changes
           </button>
 
